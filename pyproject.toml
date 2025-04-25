@@ -1,0 +1,18 @@
+[project]
+name = "minigist"
+description = "A tool that monitors your Miniflux feeds for articles without summaries, generates concise summaries using AI, and updates the entries automatically."
+readme = "README.md"
+requires-python = ">=3.13"
+dynamic = ["version"]
+dependencies = []
+
+[project.scripts]
+minigist = "minigist.cli:main"
+
+[build-system]
+requires = ["setuptools>=64", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "no-local-version"
