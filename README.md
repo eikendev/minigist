@@ -8,7 +8,7 @@
 
 <p align="center">
 	<a href="https://github.com/eikendev/minigist/actions"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/eikendev/minigist/main.yml?branch=main"/></a>&nbsp;
-	<a href="https://github.com/eikendev/minigist/blob/master/LICENSE"><img alt="License" src="https://img.shields.io/github/license/eikendev/minigist"/></a>&nbsp;
+	<a href="https://github.com/eikendev/minigist/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/eikendev/minigist"/></a>&nbsp;
 	<a href="https://pypi.org/project/minigist/"><img alt="PyPI" src="https://img.shields.io/pypi/v/minigist"/></a>&nbsp;
 </p>
 
