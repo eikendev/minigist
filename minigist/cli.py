@@ -15,9 +15,7 @@ logger = get_logger(__name__)
 @click.group(context_settings=dict(auto_envvar_prefix=MINIGIST_ENV_PREFIX))
 def cli():
     """
-    Minigist: AI Summarizer for Miniflux Entries.
-
-    Monitors Miniflux feeds, generates summaries for unread entries using AI, and updates them.
+    A tool that generates concise summaries for you Miniflux feeds.
     """
     pass
 
