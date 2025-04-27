@@ -31,7 +31,7 @@ pip install minigist
 Install minigist using `uv`:
 
 ```bash
-uv install minigist
+uv tool install minigist
 ```
 
 ## 📄&nbsp;Usage

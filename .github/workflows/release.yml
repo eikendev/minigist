@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  workflow_call:
+
+jobs:
+  upload-pypi:
+    name: Upload distributions to PyPI
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Verify uv version
+        run: uv --version
+
+      - name: Download built artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Publish to PyPI
+        run: uv publish -v dist/*
