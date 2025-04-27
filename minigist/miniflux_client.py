@@ -22,27 +22,33 @@ class MinifluxClient:
         params = {
             "status": "unread",
             "direction": "desc",
-            "limit": 1,
+            "order": "published_at",
+            "limit": filters.fetch_limit,
         }
 
         logger.debug("Fetching entries", parameters=params)
+        all_entries = []
 
         try:
-            raw_response = self.client.get_entries(**params)
+            if filters.feed_ids is None:
+                raw_response = self.client.get_entries(**params)
+                response = EntriesResponse.model_validate(raw_response)
+                all_entries = response.entries
+
+            else:
+                for feed_id in filters.feed_ids:
+                    raw_response = self.client.get_feed_entries(
+                        feed_id=feed_id, **params
+                    )
+                    response = EntriesResponse.model_validate(raw_response)
+                    all_entries.extend(response.entries)
+
         except Exception as e:
             logger.error("Failed to fetch entries from Miniflux", error=str(e))
             raise MinifluxApiError("Failed to fetch entries") from e
 
-        try:
-            response = EntriesResponse.model_validate(raw_response)
-        except Exception as e:
-            logger.error("Failed to parse entries response", error=str(e))
-            raise MinifluxApiError("Failed to parse entries response") from e
-
-        entries = response.entries
-        logger.info("Fetched unread entries", count=len(entries))
-
-        return entries
+        logger.info("Fetched unread entries", count=len(all_entries))
+        return all_entries
 
     def update_entry(self, entry_id: int, content: str):
         logger.debug("Updating entry", entry_id=entry_id, content=content)

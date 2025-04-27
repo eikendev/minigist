@@ -54,11 +54,7 @@ class FilterConfig(BaseModel):
         None, description="List of specific feed IDs to include (fetch all if None)."
     )
     fetch_limit: Optional[int] = Field(
-        100, description="Maximum number of entries to fetch."
-    )
-    fetch_days: Optional[int] = Field(
-        None,
-        description="Number of past days to fetch entries from.",
+        100, description="Maximum number of entries to fetch per feed."
     )
 
 

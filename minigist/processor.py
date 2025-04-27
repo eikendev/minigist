@@ -31,23 +31,35 @@ class Processor:
         )
         return unsummarized
 
-    def _process_single_entry(self, entry: Entry) -> bool:
+    def _process_single_entry(self, entry: Entry):
         logger.debug("Processing entry", entry_id=entry.id, title=entry.title)
 
         article_text = self.summarizer.fetch_and_parse_article(entry.url)
+
         if not article_text:
             logger.warning(
                 "No article text extracted", entry_id=entry.id, url=entry.url
             )
-            return True
+            return
+
+        logger.debug(
+            "Fetched article text",
+            preview=f"{article_text[:100]}..."
+            if len(article_text) > 100
+            else article_text,
+        )
 
         summary = self.summarizer.generate_summary(article_text)
+        logger.debug(
+            "Generated summary",
+            preview=f"{summary[:100]}..." if len(summary) > 100 else summary,
+        )
 
         markdown_content = f"{summary}\n\n---\n\n{WATERMARK}"
         new_content = markdown.markdown(markdown_content)
 
         self.client.update_entry(entry_id=entry.id, content=new_content)
-        return True
+        return
 
     def run(self) -> None:
         logger.debug("Starting minigist processor")
@@ -66,7 +78,11 @@ class Processor:
             logger.info("All entries have already been summarized")
             return
 
-        logger.info("Processing entries", count=len(entries))
+        logger.info(
+            "Processing entries",
+            count=len(entries),
+            titles=[entry.title for entry in entries],
+        )
 
         for entry in entries:
             self._process_single_entry(entry)
