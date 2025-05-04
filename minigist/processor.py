@@ -8,6 +8,7 @@ from .logging import get_logger
 from .miniflux_client import MinifluxClient
 from .models import Entry
 from .summarizer import Summarizer
+from .downloader import Downloader
 
 logger = get_logger(__name__)
 
@@ -17,6 +18,7 @@ class Processor:
         self.config = config
         self.client = MinifluxClient(config.miniflux, dry_run=dry_run)
         self.summarizer = Summarizer(config.ai)
+        self.downloader = Downloader()
         logger.debug("Processor initialized", dry_run=dry_run)
 
     def _filter_unsummarized_entries(self, entries: List[Entry]) -> List[Entry]:
@@ -34,8 +36,12 @@ class Processor:
     def _process_single_entry(self, entry: Entry):
         logger.debug("Processing entry", entry_id=entry.id, title=entry.title)
 
-        article_text = self.summarizer.fetch_and_parse_article(entry.url)
+        html = self.downloader.fetch_html(entry.url)
+        if not html:
+            logger.warning("Failed to fetch HTML", entry_id=entry.id, url=entry.url)
+            return
 
+        article_text = self.summarizer.parse_html(html, entry.url)
         if not article_text:
             logger.warning(
                 "No article text extracted", entry_id=entry.id, url=entry.url
@@ -86,5 +92,7 @@ class Processor:
 
         for entry in entries:
             self._process_single_entry(entry)
+
+        self.downloader.close()
 
         logger.info("Successfully processed entries", count=len(entries))

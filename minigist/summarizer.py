@@ -1,6 +1,6 @@
-from typing import Optional
+import json
 
-from newspaper import Article, ArticleException  # type: ignore
+import trafilatura
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -32,36 +32,43 @@ class Summarizer:
             system_prompt=config.system_prompt,
         )
 
-    def fetch_and_parse_article(self, url: str) -> Optional[str]:
-        logger.debug("Fetching article content", url=url)
+    def parse_html(self, html: str, url: str) -> str:
+        logger.debug("Parsing article HTML", url=url)
+        try:
+            extracted = trafilatura.extract(
+                html,
+                output_format="json",
+                with_metadata=True,
+                include_comments=False,
+            )
+        except Exception as e:
+            logger.error("Unexpected error extracting content", url=url, error=str(e))
+            raise ArticleFetchError(
+                f"Failed to extract article content from {url}"
+            ) from e
+
+        if not extracted:
+            logger.error("No content extracted from article", url=url)
+            raise ArticleFetchError(f"No content extracted from {url}")
 
         try:
-            article = Article(url)
-            article.download()
-            article.parse()
-        except ArticleException as e:
-            logger.error("Newspaper3k failed to process article", url=url, error=str(e))
-            raise ArticleFetchError(f"Failed to fetch/parse article {url}") from e
+            content = json.loads(extracted)
         except Exception as e:
-            logger.error(
-                "Unexpected error fetching article",
-                url=url,
-                error=str(e),
-            )
-            raise ArticleFetchError(f"Unexpected error fetching article {url}") from e
+            logger.error("Unexpected error parsing JSON", url=url, error=str(e))
+            raise ArticleFetchError(
+                f"Failed to parse extracted content for {url}"
+            ) from e
 
-        text = article.text
-
+        text = content.get("text")
         if not text:
-            logger.warning("No text content extracted from article", url=url)
-            return None
+            logger.error("No text content in extracted article", url=url)
+            raise ArticleFetchError(f"No text content extracted from {url}")
 
-        logger.debug("Successfully extracted text", url=url, length=len(text))
+        logger.debug("Successfully parsed text", url=url, length=len(text))
         return text
 
     def generate_summary(self, article_text: str) -> str:
         logger.debug("Generating article summary", length=len(article_text))
-
         try:
             result = self.agent.run_sync(article_text)
         except Exception as e:
@@ -73,6 +80,10 @@ class Summarizer:
             raise AIServiceError("AI service returned an empty result")
 
         summary = result.output
-        logger.debug("Successfully generated summary", length=len(summary))
 
+        if "minigist error" in summary.lower():
+            logger.error("Model indicated error in summary", summary=summary)
+            raise AIServiceError("AI service returned an error in summary")
+
+        logger.debug("Successfully generated summary", length=len(summary))
         return summary

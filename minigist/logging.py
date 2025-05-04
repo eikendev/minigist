@@ -5,9 +5,6 @@ import structlog
 
 
 def configure_logging(log_level_str: str = "INFO") -> None:
-    """
-    Configure structlog for the application.
-    """
     log_level = getattr(logging, log_level_str.upper(), logging.INFO)
 
     logging.basicConfig(
@@ -40,7 +37,4 @@ def configure_logging(log_level_str: str = "INFO") -> None:
 
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
-    """
-    Get a structured logger with the given name.
-    """
     return structlog.get_logger(name)

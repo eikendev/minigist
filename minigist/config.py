@@ -4,6 +4,7 @@ from typing import List, Optional
 import yaml
 from pydantic import BaseModel, Field, HttpUrl, ValidationError
 
+from minigist.constants import DEFAULT_SYSTEM_PROMPT
 from minigist.exceptions import ConfigError
 from minigist.logging import get_logger
 
@@ -30,7 +31,7 @@ class AIServiceConfig(BaseModel):
         description="AI model identifier to use for summarization.",
     )
     system_prompt: str = Field(
-        "Generate an executive summary of the provided article.",
+        DEFAULT_SYSTEM_PROMPT,
         description="System prompt to guide the AI summarization.",
     )
     api_key: str = Field(
