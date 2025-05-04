@@ -1,6 +1,6 @@
 from typing import Optional
 
-from seleniumbase import Driver
+from seleniumbase import Driver  # type: ignore
 
 
 class Downloader:
