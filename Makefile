@@ -3,6 +3,8 @@ PYTHON ?= python3
 SRC := ./minigist
 TESTS := ./tests
 
+VERSION := $(shell git describe --tags --long | sed -E 's/^v?([0-9.]+)-([0-9]+)-g([0-9a-f]+)/\1.post\2+\3/')
+
 .PHONY: default
 default: check
 
@@ -27,3 +29,18 @@ check:
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	rm -rf .pytest_cache .mypy_cache .ruff_cache build dist *.egg-info
+
+.PHONY: build-image
+build-image:
+	podman build \
+		--build-arg VERSION=$(VERSION) \
+		-t local/minigist .
+
+.PHONY: run-local
+run-local:
+	podman run \
+		--rm \
+		--replace \
+		--name=minigist \
+		-v $(PWD)/config.yaml:/etc/config.yaml:Z \
+		local/minigist -- run

@@ -10,6 +10,7 @@ class Downloader:
     def fetch_html(self, url: str) -> Optional[str]:
         try:
             self.driver.uc_open_with_reconnect(url, 4)
+            self.driver.uc_gui_click_captcha()
             return self.driver.page_source
         except Exception:
             return None
