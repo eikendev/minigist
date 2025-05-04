@@ -4,11 +4,11 @@ import markdown
 
 from .config import AppConfig
 from .constants import WATERMARK, WATERMARK_DETECTOR
+from .downloader import Downloader
 from .logging import get_logger
 from .miniflux_client import MinifluxClient
 from .models import Entry
 from .summarizer import Summarizer
-from .downloader import Downloader
 
 logger = get_logger(__name__)
 
