@@ -26,7 +26,6 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-          cache-key-suffix: ${{ hashFiles('uv.lock') }}
 
       - name: Verify uv version
         run: uv --version
