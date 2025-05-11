@@ -8,7 +8,7 @@ logger = get_logger(__name__)
 
 
 class Downloader:
-    def __init__(self, uc=True, browser="chrome", headless=False, max_attempts=4):
+    def __init__(self, uc=True, browser="chrome"):
         self._ctx = SB(uc=uc, browser=browser, xvfb=True)
         self.sb = self._ctx.__enter__()
 

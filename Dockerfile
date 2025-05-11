@@ -32,7 +32,7 @@ RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
 	&& echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" \
 		> /etc/apt/sources.list.d/google-chrome.list \
 	&& apt-get update && apt-get install -y --no-install-recommends \
-		xvfb \
+		xvfb x11-utils xauth python3-tk \
 		libglib2.0-0 \
 		libnss3 \
 		libgtk-3-0 \
@@ -54,4 +54,7 @@ RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked
 # Use SeleniumBase CLI to fetch the stable ChromeDriver.
 RUN uv run sbase get chromedriver stable
 
-ENTRYPOINT ["minigist"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

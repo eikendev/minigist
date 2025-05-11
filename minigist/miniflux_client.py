@@ -51,7 +51,12 @@ class MinifluxClient:
         return all_entries
 
     def update_entry(self, entry_id: int, content: str):
-        logger.debug("Updating entry", entry_id=entry_id, content=content)
+        logger.info(
+            "Updating entry",
+            entry_id=entry_id,
+            content_length=len(content),
+            preview=f"{content[:100]}..." if len(content) > 100 else content,
+        )
 
         if self.dry_run:
             logger.warning(
