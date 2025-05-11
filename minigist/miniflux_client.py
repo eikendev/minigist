@@ -54,7 +54,7 @@ class MinifluxClient:
         logger.debug("Updating entry", entry_id=entry_id, content=content)
 
         if self.dry_run:
-            logger.debug(
+            logger.warning(
                 "Would update entry; skipping due to dry run", entry_id=entry_id
             )
             return

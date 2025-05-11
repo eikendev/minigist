@@ -8,7 +8,7 @@ logger = get_logger(__name__)
 
 
 class Downloader:
-    def __init__(self, uc=True, browser="chrome", headless=True, max_attempts=4):
+    def __init__(self, uc=True, browser="chrome", headless=False, max_attempts=4):
         self.driver = Driver(uc=uc, browser=browser, headless=headless)
         self.max_attempts = max_attempts
 
@@ -30,9 +30,7 @@ class Downloader:
             return html
 
         except Exception as e:
-            logger.error(
-                "Failed to fetch page HTML", url=url, error=str(e), exc_info=True
-            )
+            logger.error("Failed to fetch page HTML", url=url, error=str(e))
             return None
 
     def close(self):
