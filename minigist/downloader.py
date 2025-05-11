@@ -21,7 +21,7 @@ class Downloader:
             self.sb.activate_cdp_mode(url)
             self.sb.uc_gui_click_captcha()
 
-            html = self.sb.cdp.get_element_html("body")
+            html = self.sb.cdp.get_element_html("html")
             if not html:
                 logger.warning("Retrieved empty page source", url=url)
                 return None

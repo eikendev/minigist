@@ -40,8 +40,9 @@ build-image:
 .PHONY: run-local
 run-local:
 	podman run \
+		-t \
 		--rm \
 		--replace \
 		--name=minigist \
 		-v $(PWD)/config.yaml:/etc/config.yaml:Z \
-		local/minigist -- run
+		local/minigist -- minigist run --dry-run
