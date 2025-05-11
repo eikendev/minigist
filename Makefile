@@ -33,6 +33,7 @@ clean:
 .PHONY: build-image
 build-image:
 	podman build \
+		--security-opt label=disable \
 		--build-arg VERSION=$(VERSION) \
 		-t local/minigist .
 
