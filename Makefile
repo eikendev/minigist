@@ -44,5 +44,5 @@ run-local:
 		--rm \
 		--replace \
 		--name=minigist \
-		-v $(PWD)/config.yaml:/etc/config.yaml:Z \
+		-v $(PWD)/config.yaml:/etc/minigist/config.yaml:Z \
 		local/minigist -- minigist run --dry-run

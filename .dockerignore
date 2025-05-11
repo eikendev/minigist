@@ -1,0 +1,9 @@
+*
+!.python-version
+!entrypoint.sh
+!LICENSE
+!MANIFEST.in
+!minigist
+!pyproject.toml
+!README.md
+!uv.lock
