@@ -1,7 +1,11 @@
 FROM python:3.13-slim
 
 ARG VERSION
+
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=$VERSION
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING=UTF-8
 
 # Ensure that all commands within the Dockerfile compile bytecode.
 ENV UV_COMPILE_BYTECODE=1
