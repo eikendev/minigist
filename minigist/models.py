@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class Entry(BaseModel):
@@ -20,8 +20,7 @@ class Entry(BaseModel):
     starred: bool = False
     reading_time: int = 0
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class EntriesResponse(BaseModel):
