@@ -1,10 +1,8 @@
-from typing import List
-
 from miniflux import Client  # type: ignore
 
 from .config import FilterConfig, MinifluxConfig
 from .exceptions import MinifluxApiError
-from .logging import get_logger
+from .logging import format_log_preview, get_logger
 from .models import EntriesResponse, Entry
 
 logger = get_logger(__name__)
@@ -18,7 +16,7 @@ class MinifluxClient:
         if dry_run:
             logger.warning("Running in dry run mode; no updates will be made")
 
-    def get_entries(self, filters: FilterConfig) -> List[Entry]:
+    def get_entries(self, filters: FilterConfig) -> list[Entry]:
         params = {
             "status": "unread",
             "direction": "desc",
@@ -37,9 +35,7 @@ class MinifluxClient:
 
             else:
                 for feed_id in filters.feed_ids:
-                    raw_response = self.client.get_feed_entries(
-                        feed_id=feed_id, **params
-                    )
+                    raw_response = self.client.get_feed_entries(feed_id=feed_id, **params)
                     response = EntriesResponse.model_validate(raw_response)
                     all_entries.extend(response.entries)
 
@@ -55,13 +51,11 @@ class MinifluxClient:
             "Updating entry",
             entry_id=entry_id,
             content_length=len(content),
-            preview=f"{content[:100]}..." if len(content) > 100 else content,
+            preview=format_log_preview(content),
         )
 
         if self.dry_run:
-            logger.warning(
-                "Would update entry; skipping due to dry run", entry_id=entry_id
-            )
+            logger.warning("Would update entry; skipping due to dry run", entry_id=entry_id)
             return
 
         try:

@@ -10,7 +10,7 @@ def valid_config_dict():
     """Fixture providing a valid configuration dictionary."""
     return {
         "miniflux": {"url": "https://example.com", "api_key": "test_miniflux_key"},
-        "ai": {
+        "llm": {
             "api_key": "test_ai_key",
             "model": "test-model",
             "system_prompt": "Test prompt",
@@ -27,7 +27,7 @@ def invalid_config_dict():
             "url": "https://example.com"
             # Missing api_key
         },
-        "ai": {
+        "llm": {
             # Missing api_key
             "model": "test-model"
         },

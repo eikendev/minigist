@@ -1,8 +1,7 @@
 from pathlib import Path
-from typing import List, Optional
 
 import yaml
-from pydantic import BaseModel, Field, HttpUrl, ValidationError
+from pydantic import BaseModel, Field, HttpUrl, ValidationError, field_validator
 
 from minigist.constants import DEFAULT_SYSTEM_PROMPT
 from minigist.exceptions import ConfigError
@@ -25,55 +24,59 @@ class MinifluxConfig(BaseModel):
     api_key: str = Field(..., description="Miniflux API key.")
 
 
-class AIServiceConfig(BaseModel):
+class LLMServiceConfig(BaseModel):
     model: str = Field(
         "google/gemini-2.5-flash-preview",
-        description="AI model identifier to use for summarization.",
+        description="Base model identifier to use for summarization.",
     )
     system_prompt: str = Field(
         DEFAULT_SYSTEM_PROMPT,
-        description="System prompt to guide the AI summarization.",
+        description="System prompt to guide the LLM summarization.",
     )
     api_key: str = Field(
         ...,
-        description="API key for the AI service.",
+        description="API key for the LLM service.",
     )
-    base_url: Optional[str] = Field(
+    base_url: str | None = Field(
         "https://openrouter.ai/api/v1",
-        description="Base URL for the AI service API.",
+        description="Base URL for the LLM service API.",
     )
 
 
 class NotificationConfig(BaseModel):
-    urls: List[str] = Field(
-        default_factory=list, description="List of Apprise notification URLs."
-    )
+    urls: list[str] = Field(default_factory=list, description="List of Apprise notification URLs.")
 
 
 class FilterConfig(BaseModel):
-    feed_ids: Optional[List[int]] = Field(
-        None, description="List of specific feed IDs to include (fetch all if None)."
+    feed_ids: list[int] | None = Field(None, description="List of specific feed IDs to include (fetch all if None).")
+    fetch_limit: int | None = Field(100, description="Maximum number of entries to fetch per feed.")
+
+
+class ScrapingConfig(BaseModel):
+    pure_api_token: str | None = Field(None, description="API token for the pure.md service.")
+    pure_base_urls: list[str] = Field(
+        default_factory=list,
+        description="List of base URL prefixes for which pure.md should be used.",
     )
-    fetch_limit: Optional[int] = Field(
-        100, description="Maximum number of entries to fetch per feed."
-    )
+
+    @field_validator("pure_base_urls", mode="before")
+    @classmethod
+    def ensure_list_if_none(cls, v):
+        if v is None:
+            return []
+        return v
 
 
 class AppConfig(BaseModel):
+    filters: FilterConfig = Field(default_factory=lambda: FilterConfig.model_construct())
+    llm: LLMServiceConfig
     miniflux: MinifluxConfig
-    ai: AIServiceConfig
-    notifications: NotificationConfig = Field(
-        default_factory=lambda: NotificationConfig.model_construct()
-    )
-    filters: FilterConfig = Field(
-        default_factory=lambda: FilterConfig.model_construct()
-    )
+    notifications: NotificationConfig = Field(default_factory=lambda: NotificationConfig.model_construct())
+    scraping: ScrapingConfig = Field(default_factory=lambda: ScrapingConfig.model_construct())
 
 
-def find_config_file(config_option: Optional[str] = None) -> Path:
-    search_paths = (
-        [Path(config_option)] if config_option else []
-    ) + DEFAULT_CONFIG_PATHS
+def find_config_file(config_option: str | None = None) -> Path:
+    search_paths = ([Path(config_option)] if config_option else []) + DEFAULT_CONFIG_PATHS
 
     for path in search_paths:
         logger.debug("Checking path for config file", path=str(path))
@@ -86,7 +89,7 @@ def find_config_file(config_option: Optional[str] = None) -> Path:
 
 def load_config_from_file(file_path: Path) -> dict:
     try:
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             config_data = yaml.safe_load(f)
     except FileNotFoundError as e:
         logger.error("Config file not found", path=str(file_path))
@@ -106,7 +109,7 @@ def load_config_from_file(file_path: Path) -> dict:
     return config_data
 
 
-def load_app_config(config_path_option: Optional[str] = None) -> AppConfig:
+def load_app_config(config_path_option: str | None = None) -> AppConfig:
     config_file = find_config_file(config_path_option)
     config_data = load_config_from_file(config_file)
 

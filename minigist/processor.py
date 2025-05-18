@@ -1,11 +1,9 @@
-from typing import List
-
 import markdown
 
 from .config import AppConfig
 from .constants import WATERMARK, WATERMARK_DETECTOR
 from .downloader import Downloader
-from .logging import get_logger
+from .logging import format_log_preview, get_logger
 from .miniflux_client import MinifluxClient
 from .models import Entry
 from .summarizer import Summarizer
@@ -17,82 +15,120 @@ class Processor:
     def __init__(self, config: AppConfig, dry_run: bool = False):
         self.config = config
         self.client = MinifluxClient(config.miniflux, dry_run=dry_run)
-        self.summarizer = Summarizer(config.ai)
-        self.downloader = Downloader()
-        logger.debug("Processor initialized", dry_run=dry_run)
+        self.summarizer = Summarizer(config.llm)
+        self.downloader = Downloader(config.scraping)
 
-    def _filter_unsummarized_entries(self, entries: List[Entry]) -> List[Entry]:
-        unsummarized = [
-            entry for entry in entries if WATERMARK_DETECTOR not in entry.content
-        ]
+    def _filter_unsummarized_entries(self, entries: list[Entry]) -> list[Entry]:
+        unsummarized = [entry for entry in entries if WATERMARK_DETECTOR not in entry.content]
         logger.debug(
-            "Filtered entries",
-            total=len(entries),
-            unsummarized=len(unsummarized),
-            filtered=len(entries) - len(unsummarized),
+            "Filtered entries for summarization",
+            total_entries=len(entries),
+            unsummarized_count=len(unsummarized),
+            already_summarized_count=len(entries) - len(unsummarized),
         )
         return unsummarized
 
     def _process_single_entry(self, entry: Entry):
-        logger.debug("Processing entry", entry_id=entry.id, title=entry.title)
+        logger.debug("Processing entry", entry_id=entry.id, url=entry.url, title=entry.title)
 
-        html = self.downloader.fetch_html(entry.url)
-        if not html:
-            logger.warning("Failed to fetch HTML", entry_id=entry.id, url=entry.url)
-            return
+        article_text = self.downloader.fetch_content(entry.url)
 
-        article_text = self.summarizer.parse_html(html, entry.url)
         if not article_text:
             logger.warning(
-                "No article text extracted", entry_id=entry.id, url=entry.url
+                "Failed to fetch or parse content for entry",
+                entry_id=entry.id,
+                url=entry.url,
+            )
+            return
+
+        if not article_text.strip():
+            logger.warning(
+                "Fetched article text is empty, skipping summarization",
+                entry_id=entry.id,
+                url=entry.url,
             )
             return
 
         logger.debug(
-            "Fetched article text",
-            preview=f"{article_text[:100]}..."
-            if len(article_text) > 100
-            else article_text,
+            "Article text ready for summarization",
+            entry_id=entry.id,
+            url=entry.url,
+            text_length=len(article_text),
+            preview=format_log_preview(article_text),
         )
 
         summary = self.summarizer.generate_summary(article_text)
+
+        if not summary:
+            logger.warning(
+                "Failed to generate summary or summary was empty",
+                entry_id=entry.id,
+                url=entry.url,
+            )
+            return
+
         logger.debug(
             "Generated summary",
-            preview=f"{summary[:100]}..." if len(summary) > 100 else summary,
+            entry_id=entry.id,
+            url=entry.url,
+            summary_length=len(summary),
+            preview=format_log_preview(summary),
         )
 
-        markdown_content = f"{summary}\n\n---\n\n{WATERMARK}"
-        new_content = markdown.markdown(markdown_content)
+        markdown_content_with_watermark = f"{summary}\n\n{WATERMARK}\n\n---\n\n{entry.content}"
+        new_html_content_for_miniflux = markdown.markdown(markdown_content_with_watermark)
 
-        self.client.update_entry(entry_id=entry.id, content=new_content)
+        self.client.update_entry(entry_id=entry.id, content=new_html_content_for_miniflux)
+        logger.info(
+            "Successfully processed and updated entry",
+            entry_id=entry.id,
+            title=entry.title,
+        )
         return
 
     def run(self) -> None:
-        logger.debug("Starting minigist processor")
+        entries_to_process_count = 0
 
-        entries = self.client.get_entries(self.config.filters)
+        try:
+            all_fetched_entries = self.client.get_entries(self.config.filters)
 
-        if not entries:
-            logger.info("No matching unread entries found")
-            return
+            if not all_fetched_entries:
+                logger.info("No matching unread entries found from Miniflux")
+                return
 
-        logger.debug("Fetched entries", count=len(entries))
+            logger.debug("Fetched entries from Miniflux", count=len(all_fetched_entries))
 
-        entries = self._filter_unsummarized_entries(entries)
+            unsummarized_entries = self._filter_unsummarized_entries(all_fetched_entries)
+            entries_to_process_count = len(unsummarized_entries)
 
-        if not entries:
-            logger.info("All entries have already been summarized")
-            return
+            if not unsummarized_entries:
+                logger.info("All fetched entries have already been summarized")
+                return
 
-        logger.info(
-            "Processing entries",
-            count=len(entries),
-            titles=[entry.title for entry in entries],
-        )
+            logger.info(
+                "Attempting to process unsummarized entries",
+                count=entries_to_process_count,
+            )
 
-        for entry in entries:
-            self._process_single_entry(entry)
+            for entry_count, entry in enumerate(unsummarized_entries, 1):
+                logger.debug(
+                    "Processing entry",
+                    current_count=entry_count,
+                    total_to_process=entries_to_process_count,
+                    entry_id=entry.id,
+                    url=entry.url,
+                )
+                try:
+                    self._process_single_entry(entry)
+                except Exception as e:
+                    logger.error(
+                        "Unhandled error during processing of single entry, continuing",
+                        entry_id=entry.id,
+                        url=entry.url,
+                        error=str(e),
+                    )
 
-        self.downloader.close()
-
-        logger.info("Successfully processed entries", count=len(entries))
+        except Exception as e:
+            logger.critical("Critical error during processor run", error=str(e))
+        finally:
+            self.downloader.close()

@@ -24,10 +24,9 @@ dependencies = [
     "click>=8.1.8",
     "markdown>=3.8",
     "miniflux>=1.1.3",
-    "pyautogui>=0.9.54",
     "pydantic-ai>=0.1.6",
     "pyyaml>=6.0.2",
-    "seleniumbase>=4.38.0",
+    "requests>=2.32.3",
     "structlog>=25.3.0",
     "trafilatura>=2.0.0",
 ]
@@ -42,13 +41,19 @@ minigist = "minigist.cli:cli"
 requires = ["setuptools>=64", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+packages = ["minigist"]
+
 [tool.setuptools_scm]
 version_scheme = "post-release"
 local_scheme = "no-local-version"
 
+[tool.ruff]
+line-length = 120
+lint.select = ["F", "E", "W", "B", "I", "SIM", "UP", "N", "FURB"]
+
 [dependency-groups]
 dev = [
-    "isort>=6.0.1",
     "mypy>=1.15.0",
     "pytest>=8.3.5",
     "ruff>=0.11.7",

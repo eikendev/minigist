@@ -38,3 +38,16 @@ def configure_logging(log_level_str: str = "INFO") -> None:
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     return structlog.get_logger(name)
+
+
+def format_log_preview(text: str, text_char_limit: int = 80) -> str:
+    """
+    Formats a string for log preview: replaces newlines, truncates to text_char_limit,
+    and adds ellipsis if the original text (after newline replacement) is longer.
+    """
+    if not text:
+        return ""
+    processed_text = text.replace("\n", " ")
+    if len(processed_text) > text_char_limit:
+        return processed_text[:text_char_limit] + "..."
+    return processed_text

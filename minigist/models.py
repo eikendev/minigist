@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List
 
 from pydantic import BaseModel
 
@@ -27,4 +26,4 @@ class Entry(BaseModel):
 
 class EntriesResponse(BaseModel):
     total: int
-    entries: List[Entry]
+    entries: list[Entry]

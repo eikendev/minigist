@@ -14,14 +14,13 @@ install:
 
 .PHONY: format
 format:
-	$(UV) run isort $(SRC) $(TESTS)
 	$(UV) run ruff format $(SRC) $(TESTS)
+	$(UV) run ruff check --fix $(SRC) $(TESTS)
 
 .PHONY: check
 check:
 	$(UV) run ruff format --check $(SRC) $(TESTS)
 	$(UV) run ruff check $(SRC) $(TESTS)
-	$(UV) run isort --check $(SRC) $(TESTS)
 	$(UV) run mypy $(SRC) $(TESTS)
 	$(UV) run pytest $(TESTS)
 

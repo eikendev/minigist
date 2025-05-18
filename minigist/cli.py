@@ -1,5 +1,4 @@
 import sys
-from typing import Optional
 
 import click
 
@@ -28,9 +27,7 @@ def cli():
 )
 @click.option(
     "--log-level",
-    type=click.Choice(
-        ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False
-    ),
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
     default="INFO",
     show_default=True,
     help="Set the logging level.",
@@ -42,7 +39,7 @@ def cli():
     help="Perform a dry run without updating Miniflux.",
 )
 def run(
-    config_file: Optional[str],
+    config_file: str | None,
     log_level: str,
     dry_run: bool,
 ):

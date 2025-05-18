@@ -1,5 +1,3 @@
-from typing import List
-
 import apprise
 
 from .logging import get_logger
@@ -8,7 +6,7 @@ logger = get_logger(__name__)
 
 
 class AppriseNotifier:
-    def __init__(self, urls: List[str]):
+    def __init__(self, urls: list[str]):
         self.apobj = apprise.Apprise()
         self.has_urls = False
 
@@ -33,9 +31,7 @@ class AppriseNotifier:
             if sent:
                 logger.debug("Notification sent successfully")
             else:
-                logger.error(
-                    "Failed to send notification to any configured Apprise URL"
-                )
+                logger.error("Failed to send notification to any configured Apprise URL")
 
         except Exception as e:
             logger.error("Error sending notification via Apprise", error=str(e))
