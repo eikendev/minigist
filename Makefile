@@ -15,7 +15,7 @@ install:
 .PHONY: format
 format:
 	$(UV) run isort $(SRC) $(TESTS)
-	$(UV) run ruff --fix $(SRC) $(TESTS)
+	$(UV) run ruff format $(SRC) $(TESTS)
 
 .PHONY: check
 check:
@@ -27,8 +27,9 @@ check:
 
 .PHONY: clean
 clean:
+	uv run ruff clean
 	find . -type d -name __pycache__ -exec rm -rf {} +
-	rm -rf .pytest_cache .mypy_cache .ruff_cache build dist *.egg-info
+	rm -rf .pytest_cache .mypy_cache build dist *.egg-info
 
 .PHONY: build-image
 build-image:
