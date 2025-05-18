@@ -1,3 +1,5 @@
+import time
+from collections import deque
 from urllib.parse import urlparse, urlunparse
 
 import requests
@@ -9,6 +11,8 @@ logger = get_logger(__name__)
 DEFAULT_PUREMD_API_BASE_URL = "https://pure.md/"
 DEFAULT_USER_AGENT = "minigist"
 DEFAULT_TIMEOUT_SECONDS = 30
+REQUEST_WINDOW_SECONDS = 60.0
+MAX_REQUESTS_PER_WINDOW_NO_TOKEN = 6
 
 
 class PureMDClient:
@@ -23,6 +27,38 @@ class PureMDClient:
         self.headers = {"User-Agent": user_agent}
         if self.api_token:
             self.headers["x-puremd-api-token"] = self.api_token
+        else:
+            self._request_timestamps: deque[float] = deque(maxlen=MAX_REQUESTS_PER_WINDOW_NO_TOKEN)
+            logger.warning(
+                "Using pure.md without API token",
+                rate_limit_requests=MAX_REQUESTS_PER_WINDOW_NO_TOKEN,
+                rate_limit_window_seconds=int(REQUEST_WINDOW_SECONDS),
+            )
+
+    def _apply_rate_limit_delay_if_needed(self):
+        """Checks if rate limit is about to be hit and sleeps if necessary."""
+        now = time.monotonic()
+
+        while self._request_timestamps and self._request_timestamps[0] <= now - REQUEST_WINDOW_SECONDS:
+            self._request_timestamps.popleft()
+
+        if len(self._request_timestamps) >= MAX_REQUESTS_PER_WINDOW_NO_TOKEN:
+            oldest_in_window_request_time = self._request_timestamps[0]
+            time_until_window_resets = (oldest_in_window_request_time + REQUEST_WINDOW_SECONDS) - now
+
+            if time_until_window_resets > 0:
+                wait_time = time_until_window_resets
+                logger.info(
+                    "Rate limit delay activated",
+                    sleep_seconds=round(wait_time, 2),
+                    current_requests_in_window=len(self._request_timestamps),
+                    max_requests_per_window=MAX_REQUESTS_PER_WINDOW_NO_TOKEN,
+                    window_seconds=int(REQUEST_WINDOW_SECONDS),
+                )
+                time.sleep(wait_time)
+                now = time.monotonic()
+
+        self._request_timestamps.append(now)
 
     def _prepare_request_url(self, target_url: str) -> str:
         parsed_base = urlparse(self.base_url)
@@ -47,7 +83,7 @@ class PureMDClient:
 
     def fetch_markdown_content(self, target_url: str, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> str | None:
         if not self.api_token:
-            logger.warning("Using pure.md without API token is possible but may be rate limited")
+            self._apply_rate_limit_delay_if_needed()
 
         request_url = self._prepare_request_url(target_url)
 
