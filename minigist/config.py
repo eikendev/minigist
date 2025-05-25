@@ -3,7 +3,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field, HttpUrl, ValidationError, field_validator
 
-from minigist.constants import DEFAULT_SYSTEM_PROMPT
+from minigist.constants import DEFAULT_FETCH_LIMIT, DEFAULT_SYSTEM_PROMPT
 from minigist.exceptions import ConfigError
 from minigist.logging import get_logger
 
@@ -49,7 +49,7 @@ class NotificationConfig(BaseModel):
 
 class FilterConfig(BaseModel):
     feed_ids: list[int] | None = Field(None, description="List of specific feed IDs to include (fetch all if None).")
-    fetch_limit: int | None = Field(100, description="Maximum number of entries to fetch per feed.")
+    fetch_limit: int | None = Field(DEFAULT_FETCH_LIMIT, description="Maximum number of entries to fetch per feed.")
 
 
 class ScrapingConfig(BaseModel):
@@ -118,5 +118,12 @@ def load_app_config(config_path_option: str | None = None) -> AppConfig:
     except ValidationError as e:
         logger.error("Error validating application configuration", error=str(e))
         raise ConfigError("Invalid or incomplete configuration") from e
+
+    if app_config.filters.fetch_limit is not None and app_config.filters.fetch_limit < DEFAULT_FETCH_LIMIT:
+        logger.warning(
+            "The 'fetch_limit' is set to a low value",
+            fetch_limit=app_config.filters.fetch_limit,
+            min_recommended_fetch_limit=DEFAULT_FETCH_LIMIT,
+        )
 
     return app_config

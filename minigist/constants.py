@@ -61,3 +61,4 @@ MAX_RETRIES_PER_ENTRY = 3  # Max number of retries for processing a single entry
 RETRY_DELAY_SECONDS = 5  # Delay in seconds between retries for a single entry
 FAILED_ENTRIES_ABORT_THRESHOLD = 10  # Abort if this many entries fail
 MINIGIST_ENV_PREFIX = "MINIGIST"
+DEFAULT_FETCH_LIMIT = 50  # Default number of entries to fetch per feed if not specified
