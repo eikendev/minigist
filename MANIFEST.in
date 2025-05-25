@@ -2,3 +2,4 @@ exclude .gitignore
 exclude uv.lock
 recursive-exclude .clinerules *
 recursive-exclude .github *
+recursive-exclude scripts *
