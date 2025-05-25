@@ -25,6 +25,7 @@ dependencies = [
     "markdown>=3.8",
     "miniflux>=1.1.3",
     "nh3>=0.2.21",
+    "pydantic>=2.11.3",
     "pydantic-ai>=0.1.6",
     "pyyaml>=6.0.2",
     "requests>=2.32.3",

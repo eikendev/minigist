@@ -1,12 +1,20 @@
+from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from .config import LLMServiceConfig
 from .exceptions import LLMServiceError
-from .logging import get_logger
+from .logging import format_log_preview, get_logger
 
 logger = get_logger(__name__)
+
+
+class SummaryOutput(BaseModel):
+    summary_markdown: str = Field(description="The generated summary in Markdown format.")
+    error: bool = Field(
+        description="Indicates if the input does not look like a full high-quality article but something else."
+    )
 
 
 class Summarizer:
@@ -20,7 +28,8 @@ class Summarizer:
         )
         self.agent = Agent(
             model,
-            system_prompt=config.system_prompt,
+            instructions=config.system_prompt,
+            output_type=SummaryOutput,
         )
 
     def generate_summary(self, article_text: str) -> str:
@@ -36,17 +45,23 @@ class Summarizer:
             raise LLMServiceError(f"LLM service error during summarization: {e}") from e
 
         if not result or not result.output:
-            logger.error("LLM service returned empty result or no output")
-            raise LLMServiceError("LLM service returned empty result or no output")
+            logger.error("LLM service returned empty result or no structured output")
+            raise LLMServiceError("LLM service returned empty result or no structured output")
 
-        summary = result.output
+        structured_output: SummaryOutput = result.output
 
-        if "minigist error" in summary.lower():
+        summary = structured_output.summary_markdown
+
+        if structured_output.error:
             logger.warning(
-                "Model indicated error in summary output",
-                summary_preview=summary[:100],
+                "Model indicated error",
+                summary_preview=format_log_preview(summary),
             )
-            raise LLMServiceError("LLM model indicated an error in its output (contained 'minigist error')")
+            raise LLMServiceError("LLM model indicated an error in its output")
+
+        if not summary or not summary.strip():
+            logger.error("LLM service returned empty summary markdown")
+            raise LLMServiceError("LLM service returned an empty summary")
 
         logger.debug("Successfully generated summary", summary_length=len(summary))
         return summary

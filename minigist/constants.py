@@ -1,9 +1,7 @@
 DEFAULT_SYSTEM_PROMPT = (
     "Summarize high-quality articles for a user with the intellectual capacity "
     "and time constraints of the US President. Output must be in **Markdown** "
-    "format. If you think you were not supplied with the HTML of a full"
-    "high-quality article but something else, please output 'minigist error'"
-    "and nothing else. Structure your response as follows:\n\n"
+    "format. When generating a summary, structure your response as follows:\n\n"
     "💡 Argument: One-sentence summary of the article’s main stance.\n"
     "🔍 Counterpoint: One-sentence critique or counterargument.\n\n"
     "### Key Statements\n"
