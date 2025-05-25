@@ -1,4 +1,5 @@
 import markdown
+import nh3
 from tenacity import RetryCallState, retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from .config import AppConfig
@@ -112,8 +113,9 @@ class Processor:
                 summary_content=summary, original_article_content=entry.content
             )
             new_html_content_for_miniflux = markdown.markdown(formatted_content)
+            sanitized_html_content = nh3.clean(new_html_content_for_miniflux)
 
-            _update_entry_with_retry(entry_id=entry.id, content=new_html_content_for_miniflux)
+            _update_entry_with_retry(entry_id=entry.id, content=sanitized_html_content)
 
             logger.info("Successfully processed entry", **entry_log_details)
             return True
