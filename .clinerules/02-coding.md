@@ -7,7 +7,7 @@
 - Follow **PEP 8** guidelines for style
 - Use **type hints** for better clarity and static analysis
 - Add **docstrings** to modules, classes, functions, and methods to explain their purpose, arguments, and return values
-- Add **inline comments** only when strictly necessary to explain complex logic that isn't clear from the code itself
+- DO NOT ADD **inline code comments** when not explicitly asked for them
 
 ## Input Validation & Sanitization
 
@@ -29,3 +29,9 @@
 
 - Prioritize **simple, clear, and maintainable** code over overly complex or "clever" solutions
 - Follow the Zen of Python (`import this`)
+
+## Error Handling Strategy
+
+- Raise specific custom exceptions (e.g., `ArticleFetchError`, `LLMServiceError`)
+- Critical errors must halt the application
+- Implement retries for transient item failures

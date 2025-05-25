@@ -22,7 +22,7 @@ class AppriseNotifier:
 
     def notify(self, title: str, body: str) -> None:
         if not self.has_urls:
-            logger.debug("Skipping notification: No valid Apprise URLs configured")
+            logger.debug("Skipping notification as no valid Apprise URLs are configured")
             return
 
         try:

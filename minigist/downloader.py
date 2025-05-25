@@ -4,6 +4,7 @@ import requests
 import trafilatura
 
 from .config import ScrapingConfig
+from .exceptions import ArticleFetchError
 from .logging import get_logger
 from .pure_client import DEFAULT_TIMEOUT_SECONDS, DEFAULT_USER_AGENT, PureMDClient
 
@@ -38,7 +39,7 @@ class Downloader:
         )
         return False
 
-    def _extract_text_from_html(self, html: str, url: str) -> str | None:
+    def _extract_text_from_html(self, html: str, url: str) -> str:
         try:
             extracted_json_str = trafilatura.extract(
                 html,
@@ -48,11 +49,11 @@ class Downloader:
             )
         except Exception as e:
             logger.error("Trafilatura extraction failed", url=url, error=str(e))
-            return None
+            raise ArticleFetchError(f"Trafilatura extraction failed for {url}: {e}") from e
 
         if not extracted_json_str:
             logger.warning("Trafilatura returned no content", url=url)
-            return None
+            raise ArticleFetchError(f"Trafilatura returned no content for {url}")
 
         try:
             content_data = json.loads(extracted_json_str)
@@ -63,7 +64,7 @@ class Downloader:
                 error=str(e),
                 raw_output_preview=extracted_json_str[:200],
             )
-            return None
+            raise ArticleFetchError(f"Failed to parse JSON from trafilatura for {url}: {e}") from e
 
         text = content_data.get("text")
         if not text or not text.strip():
@@ -71,11 +72,11 @@ class Downloader:
                 "No text content in trafilatura extracted data or text is empty",
                 url=url,
             )
-            return None
+            raise ArticleFetchError(f"No text content in trafilatura extracted data for {url}")
 
         return text
 
-    def _fetch_and_parse_html_via_http_get(self, url: str, timeout: int) -> str | None:
+    def _fetch_and_parse_html_via_http_get(self, url: str, timeout: int) -> str:
         logger.info("Attempting standard HTTP GET and parse", url=url)
 
         html_content: str | None = None
@@ -90,33 +91,35 @@ class Downloader:
                 status_code=e.response.status_code if e.response else "N/A",
                 error=str(e),
             )
-            return None
+            raise ArticleFetchError(
+                f"HTTP error {e.response.status_code if e.response else 'N/A'} during GET for {url}: {e}"
+            ) from e
         except requests.exceptions.RequestException as e:
             logger.error("RequestException during standard GET", url=url, error=str(e))
-            return None
+            raise ArticleFetchError(f"RequestException during GET for {url}: {e}") from e
         except Exception as e:
             logger.error(
                 "Unexpected error during standard GET",
                 url=url,
                 error=str(e),
             )
-            return None
+            raise ArticleFetchError(f"Unexpected error during GET for {url}: {e}") from e
 
         if not html_content:
             logger.warning("Standard HTTP GET returned no HTML content", url=url)
-            return None
+            raise ArticleFetchError(f"Standard HTTP GET returned no HTML content for {url}")
 
         return self._extract_text_from_html(html_content, url)
 
-    def fetch_content(self, url: str, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> str | None:
+    def fetch_content(self, url: str, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> str:
         if self._should_use_pure(url):
             logger.info("Fetching content via pure.md", url=url)
             content = self.pure_client.fetch_markdown_content(url, timeout=timeout)
-            if content:
+            if content and content.strip():
                 return content
             else:
-                logger.warning("pure.md fetch failed", url=url)
-                return None
+                logger.warning("pure.md fetch failed or returned empty content", url=url)
+                raise ArticleFetchError(f"pure.md fetch failed or returned empty content for {url}")
 
         return self._fetch_and_parse_html_via_http_get(url, timeout=timeout)
 

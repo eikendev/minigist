@@ -56,3 +56,8 @@ DEFAULT_SYSTEM_PROMPT = (
 )
 WATERMARK = "*Summarized by minigist* ([GitHub](https://github.com/eikendev/minigist))"
 WATERMARK_DETECTOR = "Summarized by minigist"
+MARKDOWN_CONTENT_WITH_WATERMARK = "{summary_content}\n\n" + WATERMARK + "\n\n---\n\n{original_article_content}"
+MAX_RETRIES_PER_ENTRY = 3  # Max number of retries for processing a single entry (e.g., download, summarize)
+RETRY_DELAY_SECONDS = 5  # Delay in seconds between retries for a single entry
+FAILED_ENTRIES_ABORT_THRESHOLD = 10  # Abort if this many entries fail
+MINIGIST_ENV_PREFIX = "MINIGIST"

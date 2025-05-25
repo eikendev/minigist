@@ -26,3 +26,9 @@ class Entry(BaseModel):
 class EntriesResponse(BaseModel):
     total: int
     entries: list[Entry]
+
+
+class ProcessingStats(BaseModel):
+    total_considered: int
+    processed_successfully: int
+    failed_processing: int

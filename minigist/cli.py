@@ -3,12 +3,27 @@ import sys
 import click
 
 from minigist import config, exceptions, notification
+from minigist.constants import MINIGIST_ENV_PREFIX
 from minigist.logging import configure_logging, get_logger
+from minigist.models import ProcessingStats
 from minigist.processor import Processor
 
-MINIGIST_ENV_PREFIX = "MINIGIST"
-
 logger = get_logger(__name__)
+
+
+def _handle_critical_error(
+    error_instance: Exception,
+    error_notifier: notification.AppriseNotifier,
+    log_message: str,
+    notification_message_prefix: str,
+):
+    """Logs a critical error, sends a notification, and exits the application."""
+    logger.critical(log_message, error=str(error_instance), exc_info=False)
+    error_notifier.notify(
+        title="Error occurred during minigist run",
+        body=f"{notification_message_prefix}: {error_instance}",
+    )
+    sys.exit(1)
 
 
 @click.group(context_settings=dict(auto_envvar_prefix=MINIGIST_ENV_PREFIX))
@@ -48,22 +63,58 @@ def run(
 
     try:
         app_config = config.load_app_config(config_file)
+        notifier = notification.AppriseNotifier(app_config.notifications.urls)
+
     except exceptions.ConfigError as e:
         logger.critical("Configuration error", error=str(e))
         sys.exit(1)
 
-    notifier = notification.AppriseNotifier(app_config.notifications.urls)
+    processor = None
+    stats = ProcessingStats(total_considered=0, processed_successfully=0, failed_processing=0)
 
     try:
         processor = Processor(app_config, dry_run=dry_run)
-        processor.run()
-    except Exception as e:
-        logger.critical("An error occurred during processing", error=str(e))
-        notifier.notify(
-            title="Minigist Critical Error",
-            body=f"An error occurred during processing: {e}",
+        stats = processor.run()
+
+    except exceptions.TooManyFailuresError as e:
+        _handle_critical_error(
+            e,
+            notifier,
+            log_message="Processing aborted due to excessive entry failures",
+            notification_message_prefix="Too many entry failures",
         )
-        sys.exit(1)
+    except exceptions.MinifluxApiError as e:
+        _handle_critical_error(
+            e,
+            notifier,
+            log_message="Miniflux API error occurred",
+            notification_message_prefix="Miniflux API error",
+        )
+    except Exception as e:
+        _handle_critical_error(
+            e,
+            notifier,
+            log_message="An unexpected error occurred during processing",
+            notification_message_prefix="An unexpected error occurred",
+        )
+    finally:
+        if processor:
+            processor.close_downloader()
+
+    log_data = {
+        "total_considered": stats.total_considered,
+        "processed_successfully": stats.processed_successfully,
+        "failed_processing": stats.failed_processing,
+    }
+    if stats.failed_processing > 0:
+        logger.warning("Processing finished with failures", **log_data)
+        summary_message = (
+            f"Processing finished: {stats.total_considered} considered, "
+            f"{stats.processed_successfully} processed, {stats.failed_processing} failed"
+        )
+        notifier.notify(title="minigist caught an error", body=summary_message)
+    else:
+        logger.info("Processing finished successfully", **log_data)
 
 
 if __name__ == "__main__":

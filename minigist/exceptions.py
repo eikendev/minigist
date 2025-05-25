@@ -18,5 +18,9 @@ class ArticleFetchError(SummarizationError):
     pass
 
 
-class AIServiceError(SummarizationError):
+class LLMServiceError(SummarizationError):
+    pass
+
+
+class TooManyFailuresError(MinigistError):
     pass
