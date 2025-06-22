@@ -26,7 +26,7 @@ class MinifluxConfig(BaseModel):
 
 class LLMServiceConfig(BaseModel):
     model: str = Field(
-        "google/gemini-2.5-flash-preview",
+        "google/gemini-2.0-flash-lite-001",
         description="Base model identifier to use for summarization.",
     )
     system_prompt: str = Field(

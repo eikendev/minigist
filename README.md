@@ -47,9 +47,9 @@ miniflux:
 
 ai:
   api_key: "your-ai-service-api-key"
-  base_url: "https://openrouter.ai/api/v1"  # Default
-  model: "google/gemini-2.5-flash-preview"  # Default
-  system_prompt: "Generate an executive summary of the provided article."  # Default
+  base_url: "https://openrouter.ai/api/v1"   # Default
+  model: "google/gemini-2.0-flash-lite-001"  # Default
+  system_prompt: "Generate an executive summary of the provided article."  # Optional
 
 filters:
   feed_ids: [1, 2, 3]  # Optional
