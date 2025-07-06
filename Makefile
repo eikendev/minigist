@@ -21,14 +21,14 @@ format:
 check:
 	$(UV) run ruff format --check $(SRC) $(TESTS)
 	$(UV) run ruff check $(SRC) $(TESTS)
-	$(UV) run mypy $(SRC) $(TESTS)
+	$(UV) run pyrefly check
 	$(UV) run pytest $(TESTS)
 
 .PHONY: clean
 clean:
 	uv run ruff clean
 	find . -type d -name __pycache__ -exec rm -rf {} +
-	rm -rf .pytest_cache .mypy_cache build dist *.egg-info
+	rm -rf .pytest_cache build dist *.egg-info
 
 .PHONY: build-image
 build-image:

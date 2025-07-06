@@ -55,9 +55,13 @@ local_scheme = "no-local-version"
 line-length = 120
 lint.select = ["F", "E", "W", "B", "I", "SIM", "UP", "N", "FURB"]
 
+[tool.pyrefly]
+project-includes = ["**/*"]
+project-excludes = ["**/*venv/**/*"]
+
 [dependency-groups]
 dev = [
-    "mypy>=1.15.0",
+    "pyrefly>=0.22.2",
     "pytest>=8.3.5",
     "ruff>=0.11.7",
     "types-markdown>=3.8.0.20250415",

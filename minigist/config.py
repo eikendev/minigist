@@ -1,7 +1,9 @@
 from pathlib import Path
+from typing import Annotated, Any
 
 import yaml
-from pydantic import BaseModel, Field, HttpUrl, ValidationError, field_validator
+from pydantic import BaseModel, Field, HttpUrl, ValidationError
+from pydantic.functional_validators import BeforeValidator
 
 from minigist.constants import DEFAULT_FETCH_LIMIT, DEFAULT_SYSTEM_PROMPT
 from minigist.exceptions import ConfigError
@@ -52,19 +54,18 @@ class FilterConfig(BaseModel):
     fetch_limit: int | None = Field(DEFAULT_FETCH_LIMIT, description="Maximum number of entries to fetch per feed.")
 
 
+def ensure_list_if_none(v: Any) -> list[str]:
+    if v is None:
+        return []
+    return v
+
+
 class ScrapingConfig(BaseModel):
     pure_api_token: str | None = Field(None, description="API token for the pure.md service.")
-    pure_base_urls: list[str] = Field(
+    pure_base_urls: Annotated[list[str], BeforeValidator(ensure_list_if_none)] = Field(
         default_factory=list,
         description="List of base URL prefixes for which pure.md should be used.",
     )
-
-    @field_validator("pure_base_urls", mode="before")
-    @classmethod
-    def ensure_list_if_none(cls, v):
-        if v is None:
-            return []
-        return v
 
 
 class AppConfig(BaseModel):
