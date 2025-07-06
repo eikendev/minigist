@@ -1,6 +1,14 @@
 config.yaml
 downloaded_files
 
+# Configuration files for coding agents
+.claude/
+.clinerules/
+.kilocode/
+.roorules/
+CLAUDE.md
+GEMINI.md
+
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 
