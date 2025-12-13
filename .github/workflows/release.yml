@@ -10,7 +10,7 @@ env:
 jobs:
   upload-pypi:
     name: Upload distributions to PyPI
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       id-token: write
     steps:
