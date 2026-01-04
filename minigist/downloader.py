@@ -111,9 +111,11 @@ class Downloader:
 
         return self._extract_text_from_html(html_content, url)
 
-    def fetch_content(self, url: str, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> str:
-        if self._should_use_pure(url):
-            logger.info("Fetching content via pure.md", url=url)
+    def fetch_content(self, url: str, timeout: int = DEFAULT_TIMEOUT_SECONDS, force_use_pure: bool = False) -> str:
+        use_pure = force_use_pure or self._should_use_pure(url)
+
+        if use_pure:
+            logger.info("Fetching content via pure.md", url=url, forced=force_use_pure)
             content = self.pure_client.fetch_markdown_content(url, timeout=timeout)
             if content and content.strip():
                 return content

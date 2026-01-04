@@ -26,14 +26,10 @@ class MinifluxConfig(BaseModel):
     api_key: str = Field(..., description="Miniflux API key.")
 
 
-class LLMServiceConfig(BaseModel):
+class LLMConfig(BaseModel):
     model: str = Field(
-        "google/gemini-2.0-flash-lite-001",
+        "google/gemini-2.5-flash-lite",
         description="Base model identifier to use for summarization.",
-    )
-    system_prompt: str = Field(
-        DEFAULT_SYSTEM_PROMPT,
-        description="System prompt to guide the LLM summarization.",
     )
     api_key: str = Field(
         ...,
@@ -49,9 +45,8 @@ class NotificationConfig(BaseModel):
     urls: list[str] = Field(default_factory=list, description="List of Apprise notification URLs.")
 
 
-class FilterConfig(BaseModel):
-    feed_ids: list[int] | None = Field(None, description="List of specific feed IDs to include (fetch all if None).")
-    fetch_limit: int | None = Field(DEFAULT_FETCH_LIMIT, description="Maximum number of entries to fetch per feed.")
+class FetchConfig(BaseModel):
+    limit: int | None = Field(DEFAULT_FETCH_LIMIT, description="Maximum number of entries to fetch per feed.")
 
 
 def ensure_list_if_none(v: Any) -> list[str]:
@@ -64,13 +59,37 @@ class ScrapingConfig(BaseModel):
     pure_api_token: str | None = Field(None, description="API token for the pure.md service.")
     pure_base_urls: Annotated[list[str], BeforeValidator(ensure_list_if_none)] = Field(
         default_factory=list,
-        description="List of base URL prefixes for which pure.md should be used.",
+        description="List of base URL prefixes for which pure.md should always be used.",
     )
 
 
+class PromptConfig(BaseModel):
+    id: str = Field(..., description="Identifier for the prompt.")
+    system_prompt: str = Field(DEFAULT_SYSTEM_PROMPT, description="System prompt text to guide summarization.")
+
+
+class TargetConfig(BaseModel):
+    prompt_id: str = Field(..., description="Prompt identifier to use for this target.")
+    feed_ids: list[int] | None = Field(
+        None,
+        description="List of feed IDs that should use this prompt.",
+    )
+    category_ids: list[int] | None = Field(
+        None,
+        description="List of category IDs whose feeds should use this prompt.",
+    )
+    use_pure: bool = Field(False, description="Whether to prefer pure.md for this target.")
+
+
 class AppConfig(BaseModel):
-    filters: FilterConfig = Field(default_factory=lambda: FilterConfig.model_construct())
-    llm: LLMServiceConfig
+    default_prompt_id: str | None = Field(
+        None,
+        description="Optional default prompt ID to use when no targets are configured.",
+    )
+    prompts: list[PromptConfig]
+    targets: list[TargetConfig] = Field(default_factory=list)
+    fetch: FetchConfig = Field(default_factory=lambda: FetchConfig.model_construct())
+    llm: LLMConfig
     miniflux: MinifluxConfig
     notifications: NotificationConfig = Field(default_factory=lambda: NotificationConfig.model_construct())
     scraping: ScrapingConfig = Field(default_factory=lambda: ScrapingConfig.model_construct())
@@ -120,11 +139,61 @@ def load_app_config(config_path_option: str | None = None) -> AppConfig:
         logger.error("Error validating application configuration", error=str(e))
         raise ConfigError("Invalid or incomplete configuration") from e
 
-    if app_config.filters.fetch_limit is not None and app_config.filters.fetch_limit < DEFAULT_FETCH_LIMIT:
+    _validate_app_config(app_config)
+
+    if app_config.fetch.limit is not None and app_config.fetch.limit < DEFAULT_FETCH_LIMIT:
         logger.warning(
             "The 'fetch_limit' is set to a low value",
-            fetch_limit=app_config.filters.fetch_limit,
+            fetch_limit=app_config.fetch.limit,
             min_recommended_fetch_limit=DEFAULT_FETCH_LIMIT,
         )
 
     return app_config
+
+
+def _validate_app_config(app_config: AppConfig) -> None:
+    if not app_config.prompts:
+        logger.error("Validation failed: no prompts configured")
+        raise ConfigError("At least one prompt must be configured")
+
+    prompt_ids = [prompt.id for prompt in app_config.prompts]
+    if len(prompt_ids) != len(set(prompt_ids)):
+        logger.error("Validation failed: duplicate prompt IDs detected")
+        raise ConfigError("Prompt IDs must be unique")
+
+    if app_config.default_prompt_id and app_config.default_prompt_id not in prompt_ids:
+        logger.error(
+            "Validation failed: default_prompt_id does not exist",
+            default_prompt_id=app_config.default_prompt_id,
+        )
+        raise ConfigError(f"default_prompt_id '{app_config.default_prompt_id}' does not match any configured prompt")
+
+    if not app_config.targets:
+        logger.info("No targets configured; default prompt will be used for all unread entries")
+        return
+
+    available_prompt_ids = set(prompt_ids)
+    seen_feed_ids: set[int] = set()
+
+    for target in app_config.targets:
+        if target.prompt_id not in available_prompt_ids:
+            logger.error("Validation failed: target references unknown prompt ID", prompt_id=target.prompt_id)
+            raise ConfigError(f"Target references unknown prompt_id '{target.prompt_id}'")
+
+        has_feeds = bool(target.feed_ids)
+        has_categories = bool(target.category_ids)
+
+        if not has_feeds and not has_categories:
+            logger.error("Validation failed: target missing feed_ids and category_ids", prompt_id=target.prompt_id)
+            raise ConfigError("Each target must specify at least one feed_id or category_id")
+
+        if target.feed_ids:
+            for feed_id in target.feed_ids:
+                if feed_id in seen_feed_ids:
+                    logger.error(
+                        "Validation failed: feed ID assigned to multiple targets",
+                        feed_id=feed_id,
+                        prompt_id=target.prompt_id,
+                    )
+                    raise ConfigError(f"Feed ID {feed_id} is assigned to multiple targets")
+                seen_feed_ids.add(feed_id)
