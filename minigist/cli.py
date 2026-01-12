@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 import click
 
@@ -37,7 +38,8 @@ def cli():
 @cli.command()
 @click.option(
     "--config-file",
-    type=click.Path(dir_okay=False),
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
     help="Path to the YAML configuration file.",
 )
 @click.option(
@@ -76,6 +78,13 @@ def run(
         processor = Processor(app_config, dry_run=dry_run)
         stats = processor.run()
 
+    except exceptions.ConfigError as e:
+        _handle_critical_error(
+            e,
+            notifier,
+            log_message="Configuration error during processing",
+            notification_message_prefix="Configuration error",
+        )
     except exceptions.TooManyFailuresError as e:
         _handle_critical_error(
             e,

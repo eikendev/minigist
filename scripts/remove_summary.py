@@ -84,10 +84,10 @@ def main():
         cfg = app_config_loader.load_app_config(config_path_option=None)
         logger.info("Configuration loaded successfully.")
         miniflux_client = MinifluxClient(cfg.miniflux, dry_run=False)
-        all_entries = miniflux_client.get_entries(cfg.filters)
+        all_entries = miniflux_client.get_entries(feed_ids=None, fetch_config=cfg.fetch)
 
         if not all_entries:
-            logger.info("No entries found based on current filters.")
+            logger.info("No entries found based on current fetch settings.")
             sys.exit(0)
 
         logger.info(f"Fetched {len(all_entries)} entries.")

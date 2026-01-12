@@ -44,6 +44,8 @@ def test_load_app_config_success(valid_config_dict, mock_config_path):
         assert result.miniflux.api_key == "test_miniflux_key"
         assert result.llm.api_key == "test_ai_key"
         assert result.llm.model == "test-model"
+        assert result.fetch.limit == 50
+        assert result.prompts[0].system_prompt == "Test prompt"
 
 
 def test_load_app_config_validation_error(invalid_config_dict, mock_config_path):
@@ -55,7 +57,7 @@ def test_load_app_config_validation_error(invalid_config_dict, mock_config_path)
         load_app_config("some/path")
 
 
-def test_load_app_config_config_error(mock_config_path):
+def test_load_app_config_config_error():
     with (
         patch(
             "minigist.config.find_config_file",

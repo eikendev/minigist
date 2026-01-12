@@ -3,8 +3,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from minigist.config import TargetConfig
 from minigist.constants import WATERMARK_DETECTOR
-from minigist.models import Entry
+from minigist.exceptions import ConfigError
+from minigist.models import Category, Entry, Feed
 from minigist.processor import Processor
 
 
@@ -26,21 +28,30 @@ def mock_app_config():
     config.scraping.pure_api_token = "test_pure_token"
     config.scraping.pure_base_urls = []
 
-    config.filters = MagicMock()
-    config.filters.feed_ids = None
-    config.filters.fetch_limit = 100
+    config.fetch = MagicMock()
+    config.fetch.limit = 100
 
     config.notifications = MagicMock()
     config.notifications.urls = []
+    config.default_prompt_id = None
+    config.prompts = [MagicMock()]
+    config.prompts[0].id = "default"
+    config.prompts[0].system_prompt = "Test system prompt"
+    config.targets = [MagicMock()]
+    config.targets[0].prompt_id = "default"
+    config.targets[0].feed_ids = [1, 3]
+    config.targets[0].category_ids = []
+    config.targets[0].use_pure = False
     return config
 
 
 @pytest.fixture
 def processor_instance(mock_app_config):
     processor = Processor(config=mock_app_config, dry_run=True)
-    processor.client = MagicMock()
+    processor.client = MagicMock()  # type: ignore[assignment]
     processor.summarizer = MagicMock()
     processor.downloader = MagicMock()
+    processor.feed_target_map = {1: ("default", False), 2: ("default", True)}
     return processor
 
 
@@ -105,6 +116,35 @@ class TestProcessorFilterUnsummarizedEntries:
         filtered = processor_instance._filter_unsummarized_entries(entries)
         assert len(filtered) == 1
         assert filtered[0].id == 1
+
+
+class TestProcessorBuildFeedTargetMap:
+    def test_build_feed_target_map_resolves_feeds_and_categories(self, processor_instance: Processor):
+        feed1 = Feed(id=1, title="A", category=Category(id=10, title="Cat 10"))
+        feed2 = Feed(id=2, title="B", category=Category(id=20, title="Cat 20"))
+        processor_instance.client = MagicMock()  # type: ignore[assignment]
+        processor_instance.client.get_feeds.return_value = [feed1, feed2]
+        processor_instance.config.targets = [
+            TargetConfig(prompt_id="default", feed_ids=[1], category_ids=None, use_pure=False),
+            TargetConfig(prompt_id="default", feed_ids=None, category_ids=[20], use_pure=True),
+        ]
+
+        feed_target_map = processor_instance._build_feed_target_map()
+
+        assert feed_target_map[1] == ("default", False)
+        assert feed_target_map[2] == ("default", True)
+
+    def test_build_feed_target_map_conflicting_feed_assignment(self, processor_instance: Processor):
+        feed1 = Feed(id=1, title="A", category=None)
+        processor_instance.client = MagicMock()  # type: ignore[assignment]
+        processor_instance.client.get_feeds.return_value = [feed1]
+        processor_instance.config.targets = [
+            TargetConfig(prompt_id="default", feed_ids=[1], category_ids=None, use_pure=False),
+            TargetConfig(prompt_id="default", feed_ids=[1], category_ids=None, use_pure=False),
+        ]
+
+        with pytest.raises(ConfigError):
+            processor_instance._build_feed_target_map()
 
     def test_filter_entry_content_is_empty(self, processor_instance: Processor):
         entries = [create_mock_entry(1, "")]

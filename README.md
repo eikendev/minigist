@@ -45,15 +45,37 @@ miniflux:
   url: "https://your-miniflux-instance.com"
   api_key: "your-miniflux-api-key"
 
-ai:
+llm:
   api_key: "your-ai-service-api-key"
   base_url: "https://openrouter.ai/api/v1"   # Default
   model: "google/gemini-2.0-flash-lite-001"  # Default
-  system_prompt: "Generate an executive summary of the provided article."  # Optional
 
-filters:
-  feed_ids: [1, 2, 3]  # Optional
-  fetch_limit: 100     # Default
+prompts:
+  - id: "default"
+    system_prompt: "Generate an executive summary of the provided article."
+  - id: "deep-dive"
+    system_prompt: "Extract the nuanced arguments and counterpoints."
+
+# Optional: when no targets are defined, this prompt is used for all unread entries
+# If omitted, the first prompt in the list is used.
+default_prompt_id: "default"
+
+targets:
+  # When targets are defined, only these feeds/categories are processed; overlaps across targets are errors.
+  - prompt_id: "default"
+    feed_ids: [1, 2]
+  - prompt_id: "deep-dive"
+    category_ids: [5]
+    use_pure: true  # Prefer pure.md for this target
+
+scraping:
+  pure_api_token: "optional-pure-md-token"
+  # Always route matching URLs through pure.md.
+  pure_base_urls:
+    - "https://text.npr.org/"
+
+fetch:
+  limit: 50     # Default
 
 notifications:
   urls:                # Apprise notification URLs (optional)

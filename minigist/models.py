@@ -32,3 +32,18 @@ class ProcessingStats(BaseModel):
     total_considered: int
     processed_successfully: int
     failed_processing: int
+
+
+class Category(BaseModel):
+    id: int
+    title: str
+
+
+class Feed(BaseModel):
+    id: int
+    title: str
+    category: Category | None = None
+
+
+class FeedsResponse(BaseModel):
+    feeds: list[Feed]

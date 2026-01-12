@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import markdown
 import nh3
 from tenacity import RetryCallState, retry, retry_if_exception_type, stop_after_attempt, wait_fixed
@@ -13,6 +15,7 @@ from .constants import (
 from .downloader import Downloader
 from .exceptions import (
     ArticleFetchError,
+    ConfigError,
     LLMServiceError,
     MinifluxApiError,
     TooManyFailuresError,
@@ -45,6 +48,17 @@ class Processor:
         self.summarizer = Summarizer(config.llm)
         self.downloader = Downloader(config.scraping)
         self.dry_run = dry_run
+        self.prompt_lookup = {prompt.id: prompt.system_prompt for prompt in config.prompts}
+        self.feed_target_map: dict[int, tuple[str, bool]] = {}
+        self.use_targets = bool(config.targets)
+        default_prompt_id = config.default_prompt_id or (config.prompts[0].id if config.prompts else None)
+        if default_prompt_id is None or default_prompt_id not in self.prompt_lookup:
+            logger.error(
+                "Default prompt ID is not configured or missing from prompts",
+                default_prompt_id=default_prompt_id,
+            )
+            raise ConfigError("A valid default prompt must be configured")
+        self.default_prompt_id = default_prompt_id
 
     def _filter_unsummarized_entries(self, entries: list[Entry]) -> list[Entry]:
         unsummarized = [entry for entry in entries if WATERMARK_DETECTOR not in entry.content]
@@ -56,8 +70,86 @@ class Processor:
         )
         return unsummarized
 
+    def _build_feed_target_map(self) -> dict[int, tuple[str, bool]]:
+        try:
+            feeds = self.client.get_feeds()
+        except MinifluxApiError as e:
+            logger.critical("Failed to fetch feeds metadata from Miniflux", error=str(e))
+            raise
+        except Exception as e:
+            logger.critical("Unexpected error while fetching feeds metadata", error=str(e))
+            raise
+
+        category_to_feed_ids: dict[int, set[int]] = defaultdict(set)
+        for feed in feeds:
+            if feed.category and feed.category.id is not None:
+                category_to_feed_ids[feed.category.id].add(feed.id)
+
+        feed_target_map: dict[int, tuple[str, bool]] = {}
+
+        for index, target in enumerate(self.config.targets, start=1):
+            if target.prompt_id not in self.prompt_lookup:
+                logger.error(
+                    "Validation failed while building target map: unknown prompt ID",
+                    prompt_id=target.prompt_id,
+                    target_index=index,
+                )
+                raise ConfigError(f"Target references unknown prompt_id '{target.prompt_id}'")
+
+            resolved_feed_ids: set[int] = set(target.feed_ids or [])
+
+            if target.category_ids:
+                for category_id in target.category_ids:
+                    if category_id not in category_to_feed_ids:
+                        logger.error(
+                            "Validation failed while building target map: category does not exist",
+                            category_id=category_id,
+                            target_index=index,
+                        )
+                        raise ConfigError(f"Category ID {category_id} does not exist in Miniflux")
+                    resolved_feed_ids.update(category_to_feed_ids[category_id])
+
+            if not resolved_feed_ids:
+                logger.info(
+                    "Target does not match any feeds",
+                    target_index=index,
+                    prompt_id=target.prompt_id,
+                )
+                continue
+
+            for feed_id in resolved_feed_ids:
+                if feed_id in feed_target_map:
+                    logger.error(
+                        "Validation failed while building target map: feed assigned to multiple targets",
+                        feed_id=feed_id,
+                        target_index=index,
+                    )
+                    raise ConfigError(f"Feed ID {feed_id} is assigned to multiple targets")
+                feed_target_map[feed_id] = (target.prompt_id, target.use_pure)
+
+        logger.info(
+            "Resolved targets to feeds",
+            total_feeds=len(feeds),
+            covered_feeds=len(feed_target_map),
+            uncovered_feeds=max(len(feeds) - len(feed_target_map), 0),
+        )
+        return feed_target_map
+
     def _process_single_entry(self, entry: Entry) -> bool:
-        entry_log_details = {"entry_id": entry.id, "url": entry.url, "title": entry.title}
+        if self.use_targets:
+            target = self.feed_target_map.get(entry.feed_id)
+            if not target:
+                logger.warning(
+                    "Entry was fetched without a matching target; skipping",
+                    entry_id=entry.id,
+                    feed_id=entry.feed_id,
+                )
+                return False
+            prompt_id, use_pure = target
+        else:
+            prompt_id, use_pure = self.default_prompt_id, False
+
+        entry_log_details = {"entry_id": entry.id, "url": entry.url, "title": entry.title, "prompt_id": prompt_id}
         logger.debug("Processing entry", **entry_log_details)
 
         @retry(
@@ -68,7 +160,7 @@ class Processor:
             reraise=True,
         )
         def _fetch_content_with_retry() -> str:
-            return self.downloader.fetch_content(entry.url)
+            return self.downloader.fetch_content(entry.url, force_use_pure=use_pure)
 
         @retry(
             stop=stop_after_attempt(MAX_RETRIES_PER_ENTRY),
@@ -78,7 +170,8 @@ class Processor:
             reraise=True,
         )
         def _generate_summary_with_retry(text: str) -> str:
-            return self.summarizer.generate_summary(text)
+            system_prompt = self.prompt_lookup[prompt_id]
+            return self.summarizer.generate_summary(text, system_prompt)
 
         @retry(
             stop=stop_after_attempt(MAX_RETRIES_PER_ENTRY),
@@ -141,8 +234,20 @@ class Processor:
         processed_successfully_count = 0
         failed_entries_count = 0
 
+        if self.use_targets:
+            try:
+                self.feed_target_map = self._build_feed_target_map()
+            except (MinifluxApiError, ConfigError) as e:
+                logger.critical("Failed to resolve target mapping", error=str(e))
+                raise
+            except Exception as e:
+                logger.critical("Unexpected error while resolving target mapping", error=str(e))
+                raise
+
+        effective_feed_ids = list(self.feed_target_map.keys()) if self.use_targets else None
+
         try:
-            all_fetched_entries = self.client.get_entries(self.config.filters)
+            all_fetched_entries = self.client.get_entries(effective_feed_ids, self.config.fetch)
         except MinifluxApiError as e:
             logger.critical("Failed to fetch initial entries from Miniflux", error=str(e))
             raise
@@ -155,12 +260,25 @@ class Processor:
             return ProcessingStats(total_considered=0, processed_successfully=0, failed_processing=0)
 
         unsummarized_entries = self._filter_unsummarized_entries(all_fetched_entries)
-        total_entries_considered = len(unsummarized_entries)
 
-        if not unsummarized_entries:
-            logger.info("All fetched entries have already been summarized")
+        if self.use_targets:
+            considered_entries = [entry for entry in unsummarized_entries if entry.feed_id in self.feed_target_map]
+        else:
+            considered_entries = unsummarized_entries
+
+        total_considered_entries = len(considered_entries)
+
+        skipped_due_to_missing_target = len(unsummarized_entries) - total_considered_entries
+        if skipped_due_to_missing_target > 0:
+            logger.warning(
+                "Skipping entries without a configured target (this may be a bug)",
+                skipped=skipped_due_to_missing_target,
+            )
+
+        if total_considered_entries == 0:
+            logger.info("All considered entries have already been summarized")
             return ProcessingStats(
-                total_considered=total_entries_considered,
+                total_considered=total_considered_entries,
                 processed_successfully=0,
                 failed_processing=0,
             )
@@ -168,13 +286,14 @@ class Processor:
         logger.info(
             "Attempting to process unsummarized entries",
             total_fetched=len(all_fetched_entries),
-            total_considered=total_entries_considered,
+            total_unsummarized=len(unsummarized_entries),
+            total_considered=total_considered_entries,
         )
 
-        for entry_count, entry in enumerate(unsummarized_entries, 1):
+        for entry_count, entry in enumerate(considered_entries, 1):
             logger.debug(
                 "Processing entry",
-                current_progress=f"{entry_count}/{total_entries_considered}",
+                current_progress=f"{entry_count}/{total_considered_entries}",
                 entry_id=entry.id,
             )
 
@@ -188,21 +307,21 @@ class Processor:
                     "Aborting processing because too many entries failed",
                     failed_count=failed_entries_count,
                     attempted_this_run=entry_count,
-                    total_considered=total_entries_considered,
+                    total_considered=total_considered_entries,
                 )
                 raise TooManyFailuresError(
-                    f"Processing aborted after {entry_count} of {total_entries_considered} "
+                    f"Processing aborted after {entry_count} of {total_considered_entries} "
                     f"entries attempted, due to {failed_entries_count} failures"
                 )
 
         logger.debug(
             "Processing run complete",
-            total_considered=total_entries_considered,
+            total_considered=total_considered_entries,
             successfully_processed=processed_successfully_count,
             failed_after_retries=failed_entries_count,
         )
         return ProcessingStats(
-            total_considered=total_entries_considered,
+            total_considered=total_considered_entries,
             processed_successfully=processed_successfully_count,
             failed_processing=failed_entries_count,
         )

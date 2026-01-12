@@ -13,9 +13,15 @@ def valid_config_dict():
         "llm": {
             "api_key": "test_ai_key",
             "model": "test-model",
-            "system_prompt": "Test prompt",
             "base_url": "https://api.test.com",
         },
+        "fetch": {"limit": 50},
+        "prompts": [
+            {"id": "default", "system_prompt": "Test prompt"},
+        ],
+        "targets": [
+            {"prompt_id": "default", "feed_ids": [1]},
+        ],
     }
 
 
@@ -31,6 +37,13 @@ def invalid_config_dict():
             # Missing api_key
             "model": "test-model"
         },
+        "fetch": {"limit": 50},
+        "prompts": [
+            {"id": "default", "system_prompt": "Test prompt"},
+        ],
+        "targets": [
+            {"prompt_id": "default", "feed_ids": [1]},
+        ],
     }
 
 

@@ -3,7 +3,7 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
-from .config import LLMServiceConfig
+from .config import LLMConfig
 from .exceptions import LLMServiceError
 from .logging import format_log_preview, get_logger
 
@@ -18,28 +18,28 @@ class SummaryOutput(BaseModel):
 
 
 class Summarizer:
-    def __init__(self, config: LLMServiceConfig):
-        model = OpenAIModel(
+    def __init__(self, config: LLMConfig):
+        self.model = OpenAIModel(
             config.model,
             provider=OpenAIProvider(
                 base_url=config.base_url,
                 api_key=config.api_key,
             ),
         )
-        self.agent = Agent(
-            model,
-            instructions=config.system_prompt,
-            output_type=SummaryOutput,
-        )
 
-    def generate_summary(self, article_text: str) -> str:
+    def generate_summary(self, article_text: str, system_prompt: str) -> str:
         if not article_text or not article_text.strip():
             logger.warning("Generate summary called with empty article text")
             raise LLMServiceError("Cannot generate summary from empty or whitespace-only article text")
 
         logger.debug("Generating article summary", text_length=len(article_text))
         try:
-            result = self.agent.run_sync(article_text)
+            agent = Agent(
+                self.model,
+                instructions=system_prompt,
+                output_type=SummaryOutput,
+            )
+            result = agent.run_sync(article_text)
         except Exception as e:
             logger.error("Unexpected error during LLM summarization", error=str(e))
             raise LLMServiceError(f"LLM service error during summarization: {e}") from e
