@@ -25,6 +25,13 @@ def valid_config_dict():
     }
 
 
+@pytest.fixture(autouse=True)
+def clear_minigist_env(monkeypatch):
+    """Ensure config tests are not affected by external MINIGIST_* env vars."""
+    monkeypatch.delenv("MINIGIST_MINIFLUX_API_KEY", raising=False)
+    monkeypatch.delenv("MINIGIST_LLM_API_KEY", raising=False)
+
+
 @pytest.fixture
 def invalid_config_dict():
     """Fixture providing an invalid configuration dictionary (missing required fields)."""

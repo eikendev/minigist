@@ -77,7 +77,7 @@ class Downloader:
 
         return text
 
-    def _fetch_and_parse_html_via_http_get(self, url: str, timeout: int) -> str:
+    def _fetch_and_parse_html_via_http_get(self, url: str, timeout: float) -> str:
         logger.info("Attempting standard HTTP GET and parse", url=url)
 
         html_content: str | None = None
@@ -112,7 +112,9 @@ class Downloader:
 
         return self._extract_text_from_html(html_content, url)
 
-    def fetch_content(self, url: str, timeout: int = DEFAULT_HTTP_TIMEOUT_SECONDS, force_use_pure: bool = False) -> str:
+    def fetch_content(
+        self, url: str, timeout: float = DEFAULT_HTTP_TIMEOUT_SECONDS, force_use_pure: bool = False
+    ) -> str:
         use_pure = force_use_pure or self._should_use_pure(url)
 
         if use_pure:
