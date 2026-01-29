@@ -4,9 +4,9 @@ import requests
 import trafilatura
 
 from .config import ScrapingConfig
+from .constants import DEFAULT_HTTP_TIMEOUT_SECONDS
 from .exceptions import ArticleFetchError
 from .logging import get_logger
-from .constants import DEFAULT_HTTP_TIMEOUT_SECONDS
 from .pure_client import DEFAULT_USER_AGENT, PureMDClient
 
 logger = get_logger(__name__)
