@@ -2,8 +2,10 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.settings import ModelSettings
 
 from .config import LLMConfig
+from .constants import DEFAULT_HTTP_TIMEOUT_SECONDS
 from .exceptions import LLMServiceError
 from .logging import format_log_preview, get_logger
 
@@ -36,6 +38,7 @@ class Summarizer:
         try:
             agent = Agent(
                 self.model,
+                model_settings=ModelSettings(timeout=DEFAULT_HTTP_TIMEOUT_SECONDS),
                 instructions=system_prompt,
                 output_type=SummaryOutput,
             )
