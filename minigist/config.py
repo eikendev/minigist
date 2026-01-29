@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -5,7 +6,7 @@ import yaml
 from pydantic import BaseModel, Field, HttpUrl, ValidationError
 from pydantic.functional_validators import BeforeValidator
 
-from minigist.constants import DEFAULT_FETCH_LIMIT, DEFAULT_SYSTEM_PROMPT
+from minigist.constants import DEFAULT_FETCH_LIMIT, DEFAULT_SYSTEM_PROMPT, MINIGIST_ENV_PREFIX
 from minigist.exceptions import ConfigError
 from minigist.logging import get_logger
 
@@ -132,6 +133,7 @@ def load_config_from_file(file_path: Path) -> dict:
 def load_app_config(config_path_option: str | None = None) -> AppConfig:
     config_file = find_config_file(config_path_option)
     config_data = load_config_from_file(config_file)
+    _apply_env_overrides(config_data)
 
     try:
         app_config = AppConfig(**config_data)
@@ -149,6 +151,16 @@ def load_app_config(config_path_option: str | None = None) -> AppConfig:
         )
 
     return app_config
+
+
+def _apply_env_overrides(config_data: dict) -> None:
+    miniflux_key = os.getenv(f"{MINIGIST_ENV_PREFIX}_MINIFLUX_API_KEY")
+    llm_key = os.getenv(f"{MINIGIST_ENV_PREFIX}_LLM_API_KEY")
+
+    if miniflux_key:
+        config_data.setdefault("miniflux", {})["api_key"] = miniflux_key
+    if llm_key:
+        config_data.setdefault("llm", {})["api_key"] = llm_key
 
 
 def _validate_app_config(app_config: AppConfig) -> None:
