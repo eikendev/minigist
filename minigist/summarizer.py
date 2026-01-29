@@ -32,7 +32,7 @@ class Summarizer:
             logger.warning("Generate summary called with empty article text")
             raise LLMServiceError("Cannot generate summary from empty or whitespace-only article text")
 
-        logger.debug("Generating article summary", text_length=len(article_text))
+        logger.info("Generating article summary", text_length=len(article_text))
         try:
             agent = Agent(
                 self.model,

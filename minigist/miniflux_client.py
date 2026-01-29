@@ -46,7 +46,7 @@ class MinifluxClient:
         return all_entries
 
     def update_entry(self, entry_id: int, content: str):
-        logger.debug(
+        logger.info(
             "Updating entry",
             entry_id=entry_id,
             content_length=len(content),
