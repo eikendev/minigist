@@ -4,13 +4,13 @@ from urllib.parse import urlparse, urlunparse
 
 import requests
 
+from .constants import DEFAULT_HTTP_TIMEOUT_SECONDS
 from .logging import get_logger
 
 logger = get_logger(__name__)
 
 DEFAULT_PUREMD_API_BASE_URL = "https://pure.md/"
 DEFAULT_USER_AGENT = "minigist"
-DEFAULT_TIMEOUT_SECONDS = 30
 REQUEST_WINDOW_SECONDS = 60.0
 MAX_REQUESTS_PER_WINDOW_NO_TOKEN = 6
 
@@ -81,7 +81,7 @@ class PureMDClient:
         )
         return base_url_normalized + target_url
 
-    def fetch_markdown_content(self, target_url: str, timeout: int = DEFAULT_TIMEOUT_SECONDS) -> str | None:
+    def fetch_markdown_content(self, target_url: str, timeout: int = DEFAULT_HTTP_TIMEOUT_SECONDS) -> str | None:
         if not self.api_token:
             self._apply_rate_limit_delay_if_needed()
 

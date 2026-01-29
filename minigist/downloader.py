@@ -6,7 +6,8 @@ import trafilatura
 from .config import ScrapingConfig
 from .exceptions import ArticleFetchError
 from .logging import get_logger
-from .pure_client import DEFAULT_TIMEOUT_SECONDS, DEFAULT_USER_AGENT, PureMDClient
+from .constants import DEFAULT_HTTP_TIMEOUT_SECONDS
+from .pure_client import DEFAULT_USER_AGENT, PureMDClient
 
 logger = get_logger(__name__)
 
@@ -111,7 +112,7 @@ class Downloader:
 
         return self._extract_text_from_html(html_content, url)
 
-    def fetch_content(self, url: str, timeout: int = DEFAULT_TIMEOUT_SECONDS, force_use_pure: bool = False) -> str:
+    def fetch_content(self, url: str, timeout: int = DEFAULT_HTTP_TIMEOUT_SECONDS, force_use_pure: bool = False) -> str:
         use_pure = force_use_pure or self._should_use_pure(url)
 
         if use_pure:
