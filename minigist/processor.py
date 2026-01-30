@@ -298,12 +298,13 @@ class Processor:
 
         for entry_count, entry in enumerate(considered_entries, 1):
             entry_log_context: dict[str, object] = {
+                "miniflux_entry_id": entry.id,
+                "miniflux_feed_id": entry.feed_id,
                 "processor_id": f"{entry_count}/{total_considered_entries}",
             }
             logger.debug(
                 "Processing entry",
                 **entry_log_context,
-                entry_id=entry.id,
             )
 
             if self._process_single_entry(entry, entry_log_context):
