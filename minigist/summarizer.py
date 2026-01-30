@@ -29,13 +29,12 @@ class Summarizer:
         client_kwargs: dict[str, Any] = {
             "api_key": config.api_key,
             "timeout": DEFAULT_HTTP_TIMEOUT_SECONDS,
+            "base_url": config.base_url,
         }
-
-        if config.base_url:
-            client_kwargs["base_url"] = config.base_url
 
         self.client = OpenAI(**client_kwargs)
         self.model = config.model
+        self.is_openrouter = "openrouter.ai" in config.base_url
 
     def generate_summary(
         self,
@@ -70,15 +69,20 @@ class Summarizer:
                 ),
             ]
 
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                response_format=response_format,
-                extra_body={
+            request_kwargs: dict[str, Any] = {
+                "model": self.model,
+                "messages": messages,
+                "response_format": response_format,
+            }
+
+            # OpenRouter supports provider/plugins extras; OpenAI rejects unknown params.
+            if self.is_openrouter:
+                request_kwargs["extra_body"] = {
                     "provider": {"require_parameters": True},
                     "plugins": [{"id": "response-healing"}],
-                },
-            )
+                }
+
+            completion = self.client.chat.completions.create(**request_kwargs)
         except Exception as e:
             logger.error("Unexpected error during LLM summarization", **log_context, error=str(e))
             raise LLMServiceError(f"LLM service error during summarization: {e}") from e

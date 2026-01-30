@@ -36,7 +36,7 @@ class LLMConfig(BaseModel):
         ...,
         description="API key for the LLM service.",
     )
-    base_url: str | None = Field(
+    base_url: str = Field(
         "https://openrouter.ai/api/v1",
         description="Base URL for the LLM service API.",
     )
