@@ -22,7 +22,6 @@ def mock_app_config():
     config.llm.model = "test-llm-model"
     config.llm.api_key = "test-llm-api-key"
     config.llm.base_url = "http://llm.example.com/v1"
-    config.llm.system_prompt = "Test system prompt"
 
     config.scraping = MagicMock()
     config.scraping.pure_api_token = "test_pure_token"
@@ -36,7 +35,7 @@ def mock_app_config():
     config.default_prompt_id = None
     config.prompts = [MagicMock()]
     config.prompts[0].id = "default"
-    config.prompts[0].system_prompt = "Test system prompt"
+    config.prompts[0].prompt = "Test prompt"
     config.targets = [MagicMock()]
     config.targets[0].prompt_id = "default"
     config.targets[0].feed_ids = [1, 3]

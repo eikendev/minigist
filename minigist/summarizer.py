@@ -39,7 +39,7 @@ class Summarizer:
     async def generate_summary(
         self,
         article_text: str,
-        system_prompt: str,
+        prompt: str,
         log_context: dict[str, object],
     ) -> str:
         if not article_text or not article_text.strip():
@@ -61,7 +61,7 @@ class Summarizer:
             messages: list[ChatCompletionMessageParam] = [
                 cast(
                     ChatCompletionSystemMessageParam,
-                    {"role": "system", "content": system_prompt},
+                    {"role": "system", "content": prompt},
                 ),
                 cast(
                     ChatCompletionUserMessageParam,

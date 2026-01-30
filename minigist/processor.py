@@ -22,7 +22,7 @@ class Processor:
         self.summarizer = Summarizer(config.llm)
         self.downloader = Downloader(config.scraping)
         self.dry_run = dry_run
-        self.prompt_lookup = {prompt.id: prompt.system_prompt for prompt in config.prompts}
+        self.prompt_lookup = {prompt.id: prompt.prompt for prompt in config.prompts}
         self.feed_target_map: dict[int, tuple[str, bool]] = {}
         self.use_targets = bool(config.targets)
         default_prompt_id = config.default_prompt_id or (config.prompts[0].id if config.prompts else None)

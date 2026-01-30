@@ -45,7 +45,7 @@ def test_load_app_config_success(valid_config_dict, mock_config_path):
         assert result.llm.api_key == "test_ai_key"
         assert result.llm.model == "test-model"
         assert result.fetch.limit == 50
-        assert result.prompts[0].system_prompt == "Test prompt"
+        assert result.prompts[0].prompt == "Test prompt"
 
 
 def test_load_app_config_validation_error(invalid_config_dict, mock_config_path):

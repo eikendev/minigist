@@ -17,7 +17,7 @@ def valid_config_dict():
         },
         "fetch": {"limit": 50},
         "prompts": [
-            {"id": "default", "system_prompt": "Test prompt"},
+            {"id": "default", "prompt": "Test prompt"},
         ],
         "targets": [
             {"prompt_id": "default", "feed_ids": [1]},
@@ -46,7 +46,7 @@ def invalid_config_dict():
         },
         "fetch": {"limit": 50},
         "prompts": [
-            {"id": "default", "system_prompt": "Test prompt"},
+            {"id": "default", "prompt": "Test prompt"},
         ],
         "targets": [
             {"prompt_id": "default", "feed_ids": [1]},

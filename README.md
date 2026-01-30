@@ -55,9 +55,9 @@ llm:
 
 prompts:
   - id: "default"
-    system_prompt: "Generate an executive summary of the provided article."
+    prompt: "Generate an executive summary of the provided article."
   - id: "deep-dive"
-    system_prompt: "Extract the nuanced arguments and counterpoints."
+    prompt: "Extract the nuanced arguments and counterpoints."
 
 # Optional: when no targets are defined, this prompt is used for all unread entries
 # If omitted, the first prompt in the list is used.

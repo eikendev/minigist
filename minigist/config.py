@@ -11,8 +11,8 @@ from minigist.constants import (
     DEFAULT_LLM_CONCURRENCY,
     DEFAULT_LLM_TIMEOUT_SECONDS,
     DEFAULT_MINIFLUX_TIMEOUT_SECONDS,
+    DEFAULT_PROMPT,
     DEFAULT_SCRAPE_TIMEOUT_SECONDS,
-    DEFAULT_SYSTEM_PROMPT,
     MINIGIST_ENV_PREFIX,
 )
 from minigist.exceptions import ConfigError
@@ -94,7 +94,7 @@ class ScrapingConfig(BaseModel):
 
 class PromptConfig(BaseModel):
     id: str = Field(..., description="Identifier for the prompt.")
-    system_prompt: str = Field(DEFAULT_SYSTEM_PROMPT, description="System prompt text to guide summarization.")
+    prompt: str = Field(DEFAULT_PROMPT, description="Prompt text to guide summarization.")
 
 
 class TargetConfig(BaseModel):

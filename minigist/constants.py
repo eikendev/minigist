@@ -1,6 +1,6 @@
 from textwrap import dedent
 
-DEFAULT_SYSTEM_PROMPT = dedent("""
+DEFAULT_PROMPT = dedent("""
     Summarize high-quality content for a senior executive with limited time and high cognitive demands.
     You goal is to make complex ideas accessible without oversimplifying.
 

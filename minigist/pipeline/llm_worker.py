@@ -31,8 +31,8 @@ class LLMWorker(BaseWorker):
             reraise=True,
         )
         async def _generate() -> str:
-            system_prompt = self.prompt_lookup[prompt_id]
-            return await self.summarizer.generate_summary(text, system_prompt, log_context=log_context)
+            prompt = self.prompt_lookup[prompt_id]
+            return await self.summarizer.generate_summary(text, prompt, log_context=log_context)
 
         return await _generate()
 
