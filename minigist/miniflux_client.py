@@ -49,7 +49,6 @@ class MinifluxClient:
         logger.info(
             "Updating entry",
             **log_context,
-            entry_id=entry_id,
             content_length=len(content),
             preview=format_log_preview(content),
         )
@@ -58,7 +57,6 @@ class MinifluxClient:
             logger.warning(
                 "Would update entry; skipping due to dry run",
                 **log_context,
-                entry_id=entry_id,
             )
             return
 
@@ -68,7 +66,6 @@ class MinifluxClient:
             logger.error(
                 "Failed to update entry",
                 **log_context,
-                entry_id=entry_id,
                 error=str(e),
             )
             raise MinifluxApiError(f"Failed to update entry ID {entry_id}") from e

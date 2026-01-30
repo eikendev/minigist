@@ -142,36 +142,18 @@ class Processor:
                 logger.warning(
                     "Entry was fetched without a matching target; skipping",
                     **log_context,
-                    entry_id=entry.id,
-                    feed_id=entry.feed_id,
                 )
                 return False
             prompt_id, use_pure = target
         else:
             prompt_id, use_pure = self.default_prompt_id, False
 
-        logger.debug(
-            "Processing entry", **log_context, entry_id=entry.id, url=entry.url, title=entry.title, prompt_id=prompt_id
-        )
+        logger.debug("Processing entry", **log_context, url=entry.url, title=entry.title, prompt_id=prompt_id)
 
         @retry(
             stop=stop_after_attempt(MAX_RETRIES_PER_ENTRY),
             wait=wait_fixed(RETRY_DELAY_SECONDS),
-            retry=retry_if_exception_type((ArticleFetchError, LLMServiceError)),
-            before_sleep=lambda rs: _log_retry_attempt(rs, "fetch_content", log_context),
-            reraise=True,
-        )
-        def _fetch_content_with_retry() -> str:
-            return self.downloader.fetch_content(
-                entry.url,
-                force_use_pure=use_pure,
-                log_context=log_context,
-            )
-
-        @retry(
-            stop=stop_after_attempt(MAX_RETRIES_PER_ENTRY),
-            wait=wait_fixed(RETRY_DELAY_SECONDS),
-            retry=retry_if_exception_type((ArticleFetchError, LLMServiceError)),
+            retry=retry_if_exception_type(LLMServiceError),
             before_sleep=lambda rs: _log_retry_attempt(rs, "generate_summary", log_context),
             reraise=True,
         )
@@ -190,10 +172,14 @@ class Processor:
             self.client.update_entry(entry_id=entry_id, content=content, log_context=log_context)
 
         try:
-            article_text = _fetch_content_with_retry()
+            article_text = self.downloader.fetch_content(
+                entry.url,
+                force_use_pure=use_pure,
+                log_context=log_context,
+            )
 
             logger.debug(
-                "Article text ready for summarization",
+                "Fetched article text for summarization",
                 **log_context,
                 text_length=len(article_text),
                 preview=format_log_preview(article_text),

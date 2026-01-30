@@ -1,7 +1,8 @@
 import json
 
-import requests
+import httpx
 import trafilatura
+from httpx_retries import RetryTransport
 
 from .config import ScrapingConfig
 from .constants import DEFAULT_HTTP_TIMEOUT_SECONDS
@@ -16,8 +17,11 @@ class Downloader:
     def __init__(self, scraping_config: ScrapingConfig, user_agent: str = DEFAULT_USER_AGENT):
         self.scraping_config = scraping_config
         self.pure_client = PureMDClient(api_token=scraping_config.pure_api_token, user_agent=user_agent)
-        self.http_session = requests.Session()
-        self.http_session.headers.update({"User-Agent": user_agent})
+        self.http_session = httpx.Client(
+            transport=RetryTransport(),
+            headers={"User-Agent": user_agent},
+            follow_redirects=True,
+        )
 
     def _should_use_pure(self, url: str, log_context: dict[str, object]) -> bool:
         if not self.scraping_config.pure_base_urls:
@@ -89,7 +93,7 @@ class Downloader:
             response = self.http_session.get(url, timeout=timeout)
             response.raise_for_status()
             html_content = response.text
-        except requests.exceptions.HTTPError as e:
+        except httpx.HTTPStatusError as e:
             logger.error(
                 "HTTP error during standard GET",
                 **log_context,
@@ -100,7 +104,7 @@ class Downloader:
             raise ArticleFetchError(
                 f"HTTP error {e.response.status_code if e.response else 'N/A'} during GET for {url}: {e}"
             ) from e
-        except requests.exceptions.RequestException as e:
+        except httpx.RequestError as e:
             logger.error("RequestException during standard GET", **log_context, url=url, error=str(e))
             raise ArticleFetchError(f"RequestException during GET for {url}: {e}") from e
         except Exception as e:
@@ -149,3 +153,5 @@ class Downloader:
             self.http_session.close()
         except Exception as e:
             logger.warning("Failed to close downloader HTTP session cleanly", error=str(e))
+
+        self.pure_client.close()
