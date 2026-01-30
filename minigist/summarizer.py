@@ -7,7 +7,7 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 from openai.types.shared_params.response_format_json_schema import ResponseFormatJSONSchema
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .config import LLMConfig
 from .constants import DEFAULT_HTTP_TIMEOUT_SECONDS
@@ -18,6 +18,7 @@ logger = get_logger(__name__)
 
 
 class SummaryOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     summary_markdown: str = Field(description="The generated summary in Markdown format.")
     error: bool = Field(
         description="Indicates if the input does not look like a full high-quality article but something else."
