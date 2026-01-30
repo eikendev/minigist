@@ -1,8 +1,13 @@
-from pydantic import BaseModel, Field
-from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai.settings import ModelSettings
+from typing import Any, cast
+
+from openai import OpenAI
+from openai.types.chat import (
+    ChatCompletionMessageParam,
+    ChatCompletionSystemMessageParam,
+    ChatCompletionUserMessageParam,
+)
+from openai.types.shared_params.response_format_json_schema import ResponseFormatJSONSchema
+from pydantic import BaseModel, Field, ValidationError
 
 from .config import LLMConfig
 from .constants import DEFAULT_HTTP_TIMEOUT_SECONDS
@@ -21,13 +26,16 @@ class SummaryOutput(BaseModel):
 
 class Summarizer:
     def __init__(self, config: LLMConfig):
-        self.model = OpenAIModel(
-            config.model,
-            provider=OpenAIProvider(
-                base_url=config.base_url,
-                api_key=config.api_key,
-            ),
-        )
+        client_kwargs: dict[str, Any] = {
+            "api_key": config.api_key,
+            "timeout": DEFAULT_HTTP_TIMEOUT_SECONDS,
+        }
+
+        if config.base_url:
+            client_kwargs["base_url"] = config.base_url
+
+        self.client = OpenAI(**client_kwargs)
+        self.model = config.model
 
     def generate_summary(self, article_text: str, system_prompt: str) -> str:
         if not article_text or not article_text.strip():
@@ -36,30 +44,59 @@ class Summarizer:
 
         logger.info("Generating article summary", text_length=len(article_text))
         try:
-            agent = Agent(
-                self.model,
-                model_settings=ModelSettings(timeout=DEFAULT_HTTP_TIMEOUT_SECONDS),
-                instructions=system_prompt,
-                output_type=SummaryOutput,
+            response_format: ResponseFormatJSONSchema = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": SummaryOutput.__name__,
+                    "description": "Structured summary output",
+                    "strict": True,
+                    "schema": SummaryOutput.model_json_schema(),
+                },
+            }
+
+            messages: list[ChatCompletionMessageParam] = [
+                cast(
+                    ChatCompletionSystemMessageParam,
+                    {"role": "system", "content": system_prompt},
+                ),
+                cast(
+                    ChatCompletionUserMessageParam,
+                    {"role": "user", "content": article_text},
+                ),
+            ]
+
+            completion = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                response_format=response_format,
+                extra_body={
+                    "provider": {"require_parameters": True},
+                    "plugins": [{"id": "response-healing"}],
+                },
             )
-            result = agent.run_sync(article_text)
         except Exception as e:
             logger.error("Unexpected error during LLM summarization", error=str(e))
             raise LLMServiceError(f"LLM service error during summarization: {e}") from e
 
-        if not result or not result.output:
-            logger.error("LLM service returned empty result or no structured output")
-            raise LLMServiceError("LLM service returned empty result or no structured output")
+        content = completion.choices[0].message.content
+        if not content:
+            logger.error("LLM service returned empty structured output")
+            raise LLMServiceError("LLM service returned empty structured output")
 
-        structured_output: SummaryOutput = result.output
-
-        summary = structured_output.summary_markdown
-
-        if structured_output.error:
-            logger.warning(
-                "Model indicated error",
-                summary_preview=format_log_preview(summary),
+        try:
+            output = SummaryOutput.model_validate_json(content)
+        except ValidationError as e:
+            logger.error(
+                "LLM structured output failed schema validation",
+                content_preview=format_log_preview(content),
             )
+            raise LLMServiceError("LLM structured output failed schema validation") from e
+
+        summary = output.summary_markdown
+        logger.debug("Received summary output", summary=summary)
+
+        if output.error:
+            logger.warning("Model indicated error", summary_preview=format_log_preview(summary))
             raise LLMServiceError("LLM model indicated an error in its output")
 
         if not summary or not summary.strip():
