@@ -1,44 +1,18 @@
+import asyncio
 from collections import defaultdict
-
-import markdown
-import nh3
-from tenacity import RetryCallState, retry, retry_if_exception_type, stop_after_attempt, wait_fixed
+from concurrent.futures import ThreadPoolExecutor
 
 from .config import AppConfig
-from .constants import (
-    FAILED_ENTRIES_ABORT_THRESHOLD,
-    MARKDOWN_CONTENT_WITH_WATERMARK,
-    MAX_RETRIES_PER_ENTRY,
-    RETRY_DELAY_SECONDS,
-    WATERMARK_DETECTOR,
-)
+from .constants import FAILED_ENTRIES_ABORT_THRESHOLD, WATERMARK_DETECTOR
 from .downloader import Downloader
-from .exceptions import (
-    ArticleFetchError,
-    ConfigError,
-    LLMServiceError,
-    MinifluxApiError,
-    TooManyFailuresError,
-)
-from .logging import format_log_preview, get_logger
+from .exceptions import ConfigError, MinifluxApiError, TooManyFailuresError
+from .logging import get_logger
 from .miniflux_client import MinifluxClient
 from .models import Entry, ProcessingStats
+from .pipeline import FetchWorker, LLMWorker, UpdateWorker
 from .summarizer import Summarizer
 
 logger = get_logger(__name__)
-
-
-def _log_retry_attempt(retry_state: RetryCallState, action_name: str, entry_details: dict) -> None:
-    """Log a retry attempt."""
-    exception = retry_state.outcome.exception() if retry_state.outcome else None
-    logger.warning(
-        f"Action '{action_name}' failed, retrying...",
-        **entry_details,
-        attempt=retry_state.attempt_number,
-        max_retries=MAX_RETRIES_PER_ENTRY,
-        error_type=type(exception).__name__ if exception else "N/A",
-        error=str(exception) if exception else "N/A",
-    )
 
 
 class Processor:
@@ -135,93 +109,6 @@ class Processor:
         )
         return feed_target_map
 
-    def _process_single_entry(self, entry: Entry, log_context: dict[str, object]) -> bool:
-        if self.use_targets:
-            target = self.feed_target_map.get(entry.feed_id)
-            if not target:
-                logger.warning(
-                    "Entry was fetched without a matching target; skipping",
-                    **log_context,
-                )
-                return False
-            prompt_id, use_pure = target
-        else:
-            prompt_id, use_pure = self.default_prompt_id, False
-
-        logger.debug("Processing entry", **log_context, url=entry.url, title=entry.title, prompt_id=prompt_id)
-
-        @retry(
-            stop=stop_after_attempt(MAX_RETRIES_PER_ENTRY),
-            wait=wait_fixed(RETRY_DELAY_SECONDS),
-            retry=retry_if_exception_type(LLMServiceError),
-            before_sleep=lambda rs: _log_retry_attempt(rs, "generate_summary", log_context),
-            reraise=True,
-        )
-        def _generate_summary_with_retry(text: str) -> str:
-            system_prompt = self.prompt_lookup[prompt_id]
-            return self.summarizer.generate_summary(text, system_prompt, log_context=log_context)
-
-        @retry(
-            stop=stop_after_attempt(MAX_RETRIES_PER_ENTRY),
-            wait=wait_fixed(RETRY_DELAY_SECONDS),
-            retry=retry_if_exception_type(MinifluxApiError),
-            before_sleep=lambda rs: _log_retry_attempt(rs, "update_miniflux_entry", log_context),
-            reraise=True,
-        )
-        def _update_entry_with_retry(entry_id: int, content: str) -> None:
-            self.client.update_entry(entry_id=entry_id, content=content, log_context=log_context)
-
-        try:
-            article_text = self.downloader.fetch_content(
-                entry.url,
-                force_use_pure=use_pure,
-                log_context=log_context,
-            )
-
-            logger.debug(
-                "Fetched article text for summarization",
-                **log_context,
-                text_length=len(article_text),
-                preview=format_log_preview(article_text),
-            )
-
-            summary = _generate_summary_with_retry(article_text)
-
-            logger.debug(
-                "Generated summary",
-                **log_context,
-                summary_length=len(summary),
-                preview=format_log_preview(summary),
-            )
-
-            formatted_content = MARKDOWN_CONTENT_WITH_WATERMARK.format(
-                summary_content=summary, original_article_content=entry.content
-            )
-            new_html_content_for_miniflux = markdown.markdown(formatted_content)
-            sanitized_html_content = nh3.clean(new_html_content_for_miniflux)
-
-            _update_entry_with_retry(entry_id=entry.id, content=sanitized_html_content)
-
-            logger.info("Successfully processed entry", **log_context)
-            return True
-
-        except (ArticleFetchError, LLMServiceError, MinifluxApiError) as e:
-            logger.error(
-                "Action failed after all retries for entry",
-                **log_context,
-                error_type=type(e).__name__,
-                error=str(e),
-            )
-            return False
-        except Exception as e:
-            logger.error(
-                "Unhandled error during processing of single entry",
-                **log_context,
-                error_type=type(e).__name__,
-                error=str(e),
-            )
-            return False
-
     def run(self) -> ProcessingStats:
         processed_successfully_count = 0
         failed_entries_count = 0
@@ -282,33 +169,21 @@ class Processor:
             total_considered=total_considered_entries,
         )
 
-        for entry_count, entry in enumerate(considered_entries, 1):
-            entry_log_context: dict[str, object] = {
-                "miniflux_entry_id": entry.id,
-                "miniflux_feed_id": entry.feed_id,
-                "processor_id": f"{entry_count}/{total_considered_entries}",
-            }
-            logger.debug(
-                "Processing entry",
-                **entry_log_context,
+        processed_successfully_count, failed_entries_count, aborted = asyncio.run(
+            self._run_pipeline(considered_entries, total_considered_entries)
+        )
+
+        if aborted:
+            logger.critical(
+                "Aborting processing because too many entries failed",
+                failed_count=failed_entries_count,
+                attempted_this_run=processed_successfully_count + failed_entries_count,
+                total_considered=total_considered_entries,
             )
-
-            if self._process_single_entry(entry, entry_log_context):
-                processed_successfully_count += 1
-            else:
-                failed_entries_count += 1
-
-            if failed_entries_count >= FAILED_ENTRIES_ABORT_THRESHOLD:
-                logger.critical(
-                    "Aborting processing because too many entries failed",
-                    failed_count=failed_entries_count,
-                    attempted_this_run=entry_count,
-                    total_considered=total_considered_entries,
-                )
-                raise TooManyFailuresError(
-                    f"Processing aborted after {entry_count} of {total_considered_entries} "
-                    f"entries attempted, due to {failed_entries_count} failures"
-                )
+            raise TooManyFailuresError(
+                f"Processing aborted after {processed_successfully_count + failed_entries_count} "
+                f"of {total_considered_entries} entries attempted, due to {failed_entries_count} failures"
+            )
 
         logger.debug(
             "Processing run complete",
@@ -328,3 +203,83 @@ class Processor:
             logger.debug("Downloader session closed")
         except Exception as e:
             logger.warning("Failed to close downloader HTTP session cleanly", error=str(e))
+
+    async def _run_pipeline(
+        self,
+        considered_entries: list[Entry],
+        total_considered_entries: int,
+    ) -> tuple[int, int, bool]:
+        loop = asyncio.get_running_loop()
+        in_queue: asyncio.Queue = asyncio.Queue(maxsize=self.config.llm.concurrency * 2)
+        out_queue: asyncio.Queue = asyncio.Queue()
+        abort_event = asyncio.Event()
+        counts = {"processed": 0, "failed": 0}
+
+        def record_failure() -> None:
+            counts["failed"] += 1
+            if counts["failed"] >= FAILED_ENTRIES_ABORT_THRESHOLD:
+                abort_event.set()
+
+        fetch_worker = FetchWorker(
+            downloader=self.downloader,
+            total_considered_entries=total_considered_entries,
+            use_targets=self.use_targets,
+            feed_target_map=self.feed_target_map,
+            default_prompt_id=self.default_prompt_id,
+            record_failure=record_failure,
+            abort_event=abort_event,
+        )
+        llm_worker = LLMWorker(
+            summarizer=self.summarizer,
+            prompt_lookup=self.prompt_lookup,
+            record_failure=record_failure,
+            abort_event=abort_event,
+        )
+        update_worker = UpdateWorker(
+            miniflux_client=self.client,
+            record_failure=record_failure,
+            abort_event=abort_event,
+        )
+
+        fetch_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="minigist-fetch")
+        update_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="minigist-update")
+
+        try:
+            producer_task = asyncio.create_task(
+                fetch_worker.run(
+                    loop,
+                    considered_entries,
+                    in_queue,
+                    fetch_executor,
+                    self.config.llm.concurrency,
+                )
+            )
+            worker_tasks = [
+                asyncio.create_task(
+                    llm_worker.run(
+                        in_queue,
+                        out_queue,
+                    )
+                )
+                for _ in range(self.config.llm.concurrency)
+            ]
+            updater_task = asyncio.create_task(
+                update_worker.run(
+                    loop,
+                    out_queue,
+                    update_executor,
+                    self.config.llm.concurrency,
+                    counts,
+                )
+            )
+
+            await producer_task
+            await in_queue.join()
+            await asyncio.gather(*worker_tasks)
+            await out_queue.join()
+            await updater_task
+        finally:
+            fetch_executor.shutdown(wait=True)
+            update_executor.shutdown(wait=True)
+
+        return counts["processed"], counts["failed"], abort_event.is_set()

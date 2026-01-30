@@ -8,6 +8,7 @@ from pydantic.functional_validators import BeforeValidator
 
 from minigist.constants import (
     DEFAULT_FETCH_LIMIT,
+    DEFAULT_LLM_CONCURRENCY,
     DEFAULT_LLM_TIMEOUT_SECONDS,
     DEFAULT_MINIFLUX_TIMEOUT_SECONDS,
     DEFAULT_SCRAPE_TIMEOUT_SECONDS,
@@ -55,6 +56,14 @@ class LLMConfig(BaseModel):
         DEFAULT_LLM_TIMEOUT_SECONDS,
         description="Timeout for LLM requests in seconds.",
     )
+    concurrency: Annotated[
+        int,
+        Field(
+            DEFAULT_LLM_CONCURRENCY,
+            ge=1,
+            description="Maximum number of concurrent LLM requests.",
+        ),
+    ]
 
 
 class NotificationConfig(BaseModel):

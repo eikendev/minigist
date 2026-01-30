@@ -50,7 +50,8 @@ llm:
   api_key: "your-ai-service-api-key"
   base_url: "https://openrouter.ai/api/v1"   # Default
   model: "google/gemini-2.0-flash-lite-001"  # Default
-  timeout_seconds: 30                        # Default
+  timeout_seconds: 60                        # Default
+  concurrency: 5                             # Default
 
 prompts:
   - id: "default"

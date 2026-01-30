@@ -1,6 +1,6 @@
 from typing import Any, cast
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 from openai.types.chat import (
     ChatCompletionMessageParam,
     ChatCompletionSystemMessageParam,
@@ -32,11 +32,11 @@ class Summarizer:
             "base_url": config.base_url,
         }
 
-        self.client = OpenAI(**client_kwargs)
+        self.client = AsyncOpenAI(**client_kwargs)
         self.model = config.model
         self.is_openrouter = "openrouter.ai" in config.base_url
 
-    def generate_summary(
+    async def generate_summary(
         self,
         article_text: str,
         system_prompt: str,
@@ -82,7 +82,7 @@ class Summarizer:
                     "plugins": [{"id": "response-healing"}],
                 }
 
-            completion = self.client.chat.completions.create(**request_kwargs)
+            completion = await self.client.chat.completions.create(**request_kwargs)
         except Exception as e:
             logger.error("Unexpected error during LLM summarization", **log_context, error=str(e))
             raise LLMServiceError(f"LLM service error during summarization: {e}") from e
