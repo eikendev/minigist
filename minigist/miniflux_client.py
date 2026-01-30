@@ -45,22 +45,32 @@ class MinifluxClient:
         logger.info("Fetched unread entries", count=len(all_entries))
         return all_entries
 
-    def update_entry(self, entry_id: int, content: str):
+    def update_entry(self, entry_id: int, content: str, log_context: dict[str, object]):
         logger.info(
             "Updating entry",
+            **log_context,
             entry_id=entry_id,
             content_length=len(content),
             preview=format_log_preview(content),
         )
 
         if self.dry_run:
-            logger.warning("Would update entry; skipping due to dry run", entry_id=entry_id)
+            logger.warning(
+                "Would update entry; skipping due to dry run",
+                **log_context,
+                entry_id=entry_id,
+            )
             return
 
         try:
             self.client.update_entry(entry_id=entry_id, content=content)
         except Exception as e:
-            logger.error("Failed to update entry", entry_id=entry_id, error=str(e))
+            logger.error(
+                "Failed to update entry",
+                **log_context,
+                entry_id=entry_id,
+                error=str(e),
+            )
             raise MinifluxApiError(f"Failed to update entry ID {entry_id}") from e
 
     def get_categories(self) -> list[Category]:

@@ -37,12 +37,17 @@ class Summarizer:
         self.client = OpenAI(**client_kwargs)
         self.model = config.model
 
-    def generate_summary(self, article_text: str, system_prompt: str) -> str:
+    def generate_summary(
+        self,
+        article_text: str,
+        system_prompt: str,
+        log_context: dict[str, object],
+    ) -> str:
         if not article_text or not article_text.strip():
-            logger.warning("Generate summary called with empty article text")
+            logger.warning("Generate summary called with empty article text", **log_context)
             raise LLMServiceError("Cannot generate summary from empty or whitespace-only article text")
 
-        logger.info("Generating article summary", text_length=len(article_text))
+        logger.info("Generating article summary", **log_context, text_length=len(article_text))
         try:
             response_format: ResponseFormatJSONSchema = {
                 "type": "json_schema",
@@ -75,12 +80,12 @@ class Summarizer:
                 },
             )
         except Exception as e:
-            logger.error("Unexpected error during LLM summarization", error=str(e))
+            logger.error("Unexpected error during LLM summarization", **log_context, error=str(e))
             raise LLMServiceError(f"LLM service error during summarization: {e}") from e
 
         content = completion.choices[0].message.content
         if not content:
-            logger.error("LLM service returned empty structured output")
+            logger.error("LLM service returned empty structured output", **log_context)
             raise LLMServiceError("LLM service returned empty structured output")
 
         try:
@@ -88,20 +93,25 @@ class Summarizer:
         except ValidationError as e:
             logger.error(
                 "LLM structured output failed schema validation",
+                **log_context,
                 content_preview=format_log_preview(content),
             )
             raise LLMServiceError("LLM structured output failed schema validation") from e
 
         summary = output.summary_markdown
-        logger.debug("Received summary output", summary=summary)
+        logger.debug("Received summary output", **log_context, summary=summary)
 
         if output.error:
-            logger.warning("Model indicated error", summary_preview=format_log_preview(summary))
+            logger.warning(
+                "Model indicated error",
+                **log_context,
+                summary_preview=format_log_preview(summary),
+            )
             raise LLMServiceError("LLM model indicated an error in its output")
 
         if not summary or not summary.strip():
-            logger.error("LLM service returned empty summary markdown")
+            logger.error("LLM service returned empty summary markdown", **log_context)
             raise LLMServiceError("LLM service returned an empty summary")
 
-        logger.debug("Successfully generated summary", summary_length=len(summary))
+        logger.debug("Successfully generated summary", **log_context, summary_length=len(summary))
         return summary

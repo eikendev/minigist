@@ -82,4 +82,4 @@ RETRY_DELAY_SECONDS = 0.25  # Delay in seconds between retries for a single entr
 FAILED_ENTRIES_ABORT_THRESHOLD = 10  # Abort if this many entries fail
 MINIGIST_ENV_PREFIX = "MINIGIST"
 DEFAULT_FETCH_LIMIT = 50  # Default number of entries to fetch per feed if not specified
-DEFAULT_HTTP_TIMEOUT_SECONDS = 1  # Default timeout for HTTP requests in seconds
+DEFAULT_HTTP_TIMEOUT_SECONDS = 2  # Default timeout for HTTP requests in seconds

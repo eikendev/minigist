@@ -135,7 +135,7 @@ def main():
 
             logger.info(f"User confirmed. Updating entry with original content.", entry_id=entry.id)
             try:
-                miniflux_client.update_entry(entry_id=entry.id, content=extracted_original)
+                miniflux_client.update_entry(entry_id=entry.id, content=extracted_original, log_context={"entry_id": entry.id})
                 logger.info(f"Successfully removed summary from entry.", entry_id=entry.id)
                 processed_count += 1
             except Exception as update_e:

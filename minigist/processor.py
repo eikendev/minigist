@@ -135,12 +135,13 @@ class Processor:
         )
         return feed_target_map
 
-    def _process_single_entry(self, entry: Entry) -> bool:
+    def _process_single_entry(self, entry: Entry, log_context: dict[str, object]) -> bool:
         if self.use_targets:
             target = self.feed_target_map.get(entry.feed_id)
             if not target:
                 logger.warning(
                     "Entry was fetched without a matching target; skipping",
+                    **log_context,
                     entry_id=entry.id,
                     feed_id=entry.feed_id,
                 )
@@ -149,46 +150,51 @@ class Processor:
         else:
             prompt_id, use_pure = self.default_prompt_id, False
 
-        entry_log_details = {"entry_id": entry.id, "url": entry.url, "title": entry.title, "prompt_id": prompt_id}
-        logger.debug("Processing entry", **entry_log_details)
+        logger.debug(
+            "Processing entry", **log_context, entry_id=entry.id, url=entry.url, title=entry.title, prompt_id=prompt_id
+        )
 
         @retry(
             stop=stop_after_attempt(MAX_RETRIES_PER_ENTRY),
             wait=wait_fixed(RETRY_DELAY_SECONDS),
             retry=retry_if_exception_type((ArticleFetchError, LLMServiceError)),
-            before_sleep=lambda rs: _log_retry_attempt(rs, "fetch_content", entry_log_details),
+            before_sleep=lambda rs: _log_retry_attempt(rs, "fetch_content", log_context),
             reraise=True,
         )
         def _fetch_content_with_retry() -> str:
-            return self.downloader.fetch_content(entry.url, force_use_pure=use_pure)
+            return self.downloader.fetch_content(
+                entry.url,
+                force_use_pure=use_pure,
+                log_context=log_context,
+            )
 
         @retry(
             stop=stop_after_attempt(MAX_RETRIES_PER_ENTRY),
             wait=wait_fixed(RETRY_DELAY_SECONDS),
             retry=retry_if_exception_type((ArticleFetchError, LLMServiceError)),
-            before_sleep=lambda rs: _log_retry_attempt(rs, "generate_summary", entry_log_details),
+            before_sleep=lambda rs: _log_retry_attempt(rs, "generate_summary", log_context),
             reraise=True,
         )
         def _generate_summary_with_retry(text: str) -> str:
             system_prompt = self.prompt_lookup[prompt_id]
-            return self.summarizer.generate_summary(text, system_prompt)
+            return self.summarizer.generate_summary(text, system_prompt, log_context=log_context)
 
         @retry(
             stop=stop_after_attempt(MAX_RETRIES_PER_ENTRY),
             wait=wait_fixed(RETRY_DELAY_SECONDS),
             retry=retry_if_exception_type(MinifluxApiError),
-            before_sleep=lambda rs: _log_retry_attempt(rs, "update_miniflux_entry", entry_log_details),
+            before_sleep=lambda rs: _log_retry_attempt(rs, "update_miniflux_entry", log_context),
             reraise=True,
         )
         def _update_entry_with_retry(entry_id: int, content: str) -> None:
-            self.client.update_entry(entry_id=entry_id, content=content)
+            self.client.update_entry(entry_id=entry_id, content=content, log_context=log_context)
 
         try:
             article_text = _fetch_content_with_retry()
 
             logger.debug(
                 "Article text ready for summarization",
-                **entry_log_details,
+                **log_context,
                 text_length=len(article_text),
                 preview=format_log_preview(article_text),
             )
@@ -197,7 +203,7 @@ class Processor:
 
             logger.debug(
                 "Generated summary",
-                **entry_log_details,
+                **log_context,
                 summary_length=len(summary),
                 preview=format_log_preview(summary),
             )
@@ -210,13 +216,13 @@ class Processor:
 
             _update_entry_with_retry(entry_id=entry.id, content=sanitized_html_content)
 
-            logger.info("Successfully processed entry", **entry_log_details)
+            logger.info("Successfully processed entry", **log_context)
             return True
 
         except (ArticleFetchError, LLMServiceError, MinifluxApiError) as e:
             logger.error(
                 "Action failed after all retries for entry",
-                **entry_log_details,
+                **log_context,
                 error_type=type(e).__name__,
                 error=str(e),
             )
@@ -224,7 +230,7 @@ class Processor:
         except Exception as e:
             logger.error(
                 "Unhandled error during processing of single entry",
-                **entry_log_details,
+                **log_context,
                 error_type=type(e).__name__,
                 error=str(e),
             )
@@ -291,13 +297,16 @@ class Processor:
         )
 
         for entry_count, entry in enumerate(considered_entries, 1):
+            entry_log_context: dict[str, object] = {
+                "processor_id": f"{entry_count}/{total_considered_entries}",
+            }
             logger.debug(
                 "Processing entry",
-                current_progress=f"{entry_count}/{total_considered_entries}",
+                **entry_log_context,
                 entry_id=entry.id,
             )
 
-            if self._process_single_entry(entry):
+            if self._process_single_entry(entry, entry_log_context):
                 processed_successfully_count += 1
             else:
                 failed_entries_count += 1
