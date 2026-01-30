@@ -5,7 +5,6 @@ import trafilatura
 from httpx_retries import RetryTransport
 
 from .config import ScrapingConfig
-from .constants import DEFAULT_HTTP_TIMEOUT_SECONDS
 from .exceptions import ArticleFetchError
 from .logging import get_logger
 from .pure_client import DEFAULT_USER_AGENT, PureMDClient
@@ -16,6 +15,7 @@ logger = get_logger(__name__)
 class Downloader:
     def __init__(self, scraping_config: ScrapingConfig, user_agent: str = DEFAULT_USER_AGENT):
         self.scraping_config = scraping_config
+        self.timeout_seconds = scraping_config.timeout_seconds
         self.pure_client = PureMDClient(api_token=scraping_config.pure_api_token, user_agent=user_agent)
         self.http_session = httpx.Client(
             transport=RetryTransport(),
@@ -126,7 +126,6 @@ class Downloader:
         self,
         url: str,
         log_context: dict[str, object],
-        timeout: float = DEFAULT_HTTP_TIMEOUT_SECONDS,
         force_use_pure: bool = False,
     ) -> str:
         log_context = log_context or {}
@@ -139,14 +138,14 @@ class Downloader:
                 url=url,
                 forced=force_use_pure,
             )
-            content = self.pure_client.fetch_markdown_content(url, timeout=timeout)
+            content = self.pure_client.fetch_markdown_content(url, timeout=self.timeout_seconds)
             if content and content.strip():
                 return content
             else:
                 logger.warning("pure.md fetch failed or returned empty content", **log_context, url=url)
                 raise ArticleFetchError(f"pure.md fetch failed or returned empty content for {url}")
 
-        return self._fetch_and_parse_html_via_http_get(url, timeout=timeout, log_context=log_context)
+        return self._fetch_and_parse_html_via_http_get(url, timeout=self.timeout_seconds, log_context=log_context)
 
     def close(self):
         try:

@@ -44,11 +44,13 @@ Create a configuration file at `~/.config/minigist/config.yaml`:
 miniflux:
   url: "https://your-miniflux-instance.com"
   api_key: "your-miniflux-api-key"
+  timeout_seconds: 2  # Default
 
 llm:
   api_key: "your-ai-service-api-key"
   base_url: "https://openrouter.ai/api/v1"   # Default
   model: "google/gemini-2.0-flash-lite-001"  # Default
+  timeout_seconds: 30                        # Default
 
 prompts:
   - id: "default"
@@ -73,6 +75,7 @@ scraping:
   # Always route matching URLs through pure.md.
   pure_base_urls:
     - "https://text.npr.org/"
+  timeout_seconds: 5  # Default
 
 fetch:
   limit: 50     # Default

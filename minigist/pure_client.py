@@ -5,7 +5,7 @@ from urllib.parse import urlparse, urlunparse
 import httpx
 from httpx_retries import RetryTransport
 
-from .constants import DEFAULT_HTTP_TIMEOUT_SECONDS
+from .constants import DEFAULT_SCRAPE_TIMEOUT_SECONDS
 from .logging import get_logger
 
 logger = get_logger(__name__)
@@ -87,7 +87,7 @@ class PureMDClient:
         )
         return base_url_normalized + target_url
 
-    def fetch_markdown_content(self, target_url: str, timeout: float = DEFAULT_HTTP_TIMEOUT_SECONDS) -> str | None:
+    def fetch_markdown_content(self, target_url: str, timeout: float = DEFAULT_SCRAPE_TIMEOUT_SECONDS) -> str | None:
         if not self.api_token:
             self._apply_rate_limit_delay_if_needed()
 

@@ -10,7 +10,6 @@ from openai.types.shared_params.response_format_json_schema import ResponseForma
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .config import LLMConfig
-from .constants import DEFAULT_HTTP_TIMEOUT_SECONDS
 from .exceptions import LLMServiceError
 from .logging import format_log_preview, get_logger
 
@@ -29,7 +28,7 @@ class Summarizer:
     def __init__(self, config: LLMConfig):
         client_kwargs: dict[str, Any] = {
             "api_key": config.api_key,
-            "timeout": DEFAULT_HTTP_TIMEOUT_SECONDS,
+            "timeout": config.timeout_seconds,
             "base_url": config.base_url,
         }
 

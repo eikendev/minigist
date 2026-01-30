@@ -6,7 +6,14 @@ import yaml
 from pydantic import BaseModel, Field, HttpUrl, ValidationError
 from pydantic.functional_validators import BeforeValidator
 
-from minigist.constants import DEFAULT_FETCH_LIMIT, DEFAULT_SYSTEM_PROMPT, MINIGIST_ENV_PREFIX
+from minigist.constants import (
+    DEFAULT_FETCH_LIMIT,
+    DEFAULT_LLM_TIMEOUT_SECONDS,
+    DEFAULT_MINIFLUX_TIMEOUT_SECONDS,
+    DEFAULT_SCRAPE_TIMEOUT_SECONDS,
+    DEFAULT_SYSTEM_PROMPT,
+    MINIGIST_ENV_PREFIX,
+)
 from minigist.exceptions import ConfigError
 from minigist.logging import get_logger
 
@@ -25,6 +32,10 @@ DEFAULT_CONFIG_PATHS = [
 class MinifluxConfig(BaseModel):
     url: HttpUrl = Field(..., description="URL of the Miniflux instance.")
     api_key: str = Field(..., description="Miniflux API key.")
+    timeout_seconds: float = Field(
+        DEFAULT_MINIFLUX_TIMEOUT_SECONDS,
+        description="Timeout for Miniflux API requests in seconds.",
+    )
 
 
 class LLMConfig(BaseModel):
@@ -39,6 +50,10 @@ class LLMConfig(BaseModel):
     base_url: str = Field(
         "https://openrouter.ai/api/v1",
         description="Base URL for the LLM service API.",
+    )
+    timeout_seconds: float = Field(
+        DEFAULT_LLM_TIMEOUT_SECONDS,
+        description="Timeout for LLM requests in seconds.",
     )
 
 
@@ -61,6 +76,10 @@ class ScrapingConfig(BaseModel):
     pure_base_urls: Annotated[list[str], BeforeValidator(ensure_list_if_none)] = Field(
         default_factory=list,
         description="List of base URL prefixes for which pure.md should always be used.",
+    )
+    timeout_seconds: float = Field(
+        DEFAULT_SCRAPE_TIMEOUT_SECONDS,
+        description="Timeout for HTTP fetch requests in seconds.",
     )
 
 

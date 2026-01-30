@@ -10,7 +10,11 @@ logger = get_logger(__name__)
 
 class MinifluxClient:
     def __init__(self, config: MinifluxConfig, dry_run: bool = False):
-        self.client = Client(base_url=str(config.url), api_key=config.api_key)
+        self.client = Client(
+            base_url=str(config.url),
+            api_key=config.api_key,
+            timeout=config.timeout_seconds,
+        )
         self.dry_run = dry_run
 
         if dry_run:
