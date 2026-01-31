@@ -12,13 +12,18 @@
 	<a href="https://pypi.org/project/minigist/"><img alt="PyPI" src="https://img.shields.io/pypi/v/minigist"/></a>&nbsp;
 </p>
 
-## 🤘&nbsp;Features
+## ✨&nbsp;Why minigist?
 
-- **Automatic summarization** of unread Miniflux entries
-- **Configurable filters** to target specific feeds
-- **Notification support** via Apprise for various messaging services
-- **Dry-run mode** to preview changes without modifying entries
-- **Structured logging** for better debugging and monitoring
+Long-form feed entries are great for depth but hard to keep up with. Miniflux shows the full content, and without a summary layer you still have to read everything to decide what matters.
+
+minigist solves this by generating concise summaries on the server side and writing them directly into each unread entry. This works with your current way to read Miniflux entries, no client changes needed.
+
+## 🧠&nbsp;How it works
+
+- You define prompts and targets in a YAML config file
+- minigist fetches the full text of unread entries (using pure.md if configured)
+- Your configured LLM generates summaries using your prompts
+- Summaries are written back into the Miniflux entry
 
 ## 🚀&nbsp;Installation
 
@@ -42,54 +47,70 @@ Create a configuration file at `~/.config/minigist/config.yaml`:
 
 ```yaml
 miniflux:
+  # Base URL of your Miniflux instance (required)
   url: "https://your-miniflux-instance.com"
+  # Miniflux API key (required)
   api_key: "your-miniflux-api-key"
-  timeout_seconds: 2  # Default
+  # Request timeout in seconds (optional; default: 2)
+  timeout_seconds: 2
 
 llm:
+  # API key for your LLM provider (required)
   api_key: "your-ai-service-api-key"
-  base_url: "https://openrouter.ai/api/v1"   # Default
-  model: "google/gemini-2.0-flash-lite-001"  # Default
-  timeout_seconds: 60                        # Default
-  concurrency: 5                             # Default
+  # API base URL (optional; default: OpenRouter)
+  base_url: "https://openrouter.ai/api/v1"
+  # Model identifier to use (optional; default shown)
+  model: "google/gemini-2.5-flash-lite"
+  # Request timeout in seconds (optional; default: 60)
+  timeout_seconds: 60
+  # Max number of concurrent LLM requests (optional; default: 5)
+  concurrency: 5
 
 prompts:
+  # Prompts define how summaries are produced.
+  # Each prompt must have a unique id.
   - id: "default"
     prompt: "Generate an executive summary of the provided article."
   - id: "deep-dive"
     prompt: "Extract the nuanced arguments and counterpoints."
 
-# Optional: when no targets are defined, this prompt is used for all unread entries
-# If omitted, the first prompt in the list is used.
+# Optional: when no targets are defined, this prompt is used for all unread entries.
+# If omitted, the first prompt in the "prompts" list is used.
 default_prompt_id: "default"
 
 targets:
-  # When targets are defined, only these feeds/categories are processed; overlaps across targets are errors.
+  # Targets map feeds or categories to prompts.
+  # When targets are defined, ONLY these feeds/categories are processed.
+  # Overlaps across targets are errors.
   - prompt_id: "default"
     feed_ids: [1, 2]
   - prompt_id: "deep-dive"
     category_ids: [5]
-    use_pure: true  # Prefer pure.md for this target
+    # Prefer pure.md for this target (optional; default: false)
+    use_pure: true
 
 scraping:
+  # Token for pure.md (optional; improves rate limits)
   pure_api_token: "optional-pure-md-token"
-  # Always route matching URLs through pure.md.
+  # Always route matching URLs through pure.md
   pure_base_urls:
     - "https://text.npr.org/"
-  timeout_seconds: 5  # Default
+  # Request timeout for scraping in seconds (optional; default: 5)
+  timeout_seconds: 5
 
 fetch:
-  limit: 50     # Default
+  # Max unread entries to fetch per feed (optional; default: 50)
+  limit: 50
 
 notifications:
-  urls:                # Apprise notification URLs (optional)
-    - "discord://webhook_id/webhook_token"
-    - "telegram://bot_token/chat_id"
+  # Apprise notification URLs (optional)
+  - "discord://webhook_id/webhook_token"
+  - "telegram://bot_token/chat_id"
 ```
 
 See [Apprise documentation](https://github.com/caronc/apprise) for all supported notification services.
 
-### Basic Commands
+### Run
 
 Run minigist to process unread entries:
 
