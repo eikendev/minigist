@@ -43,7 +43,21 @@ uv tool install minigist
 
 ### Configuration
 
-Create a configuration file at `~/.config/minigist/config.yaml`:
+Find below an example config file. By default, minigist searches for a config file in this order:
+
+- `~/.config/minigist/config.yaml`
+- `~/.config/minigist/config.yml`
+- `./config.yaml`
+- `./config.yml`
+- `/etc/minigist/config.yaml`
+- `/etc/minigist/config.yml`
+
+You can override the path with the `--config-file` flag.
+
+For credentials, you can set environment variables to override the YAML values:
+
+- `MINIGIST_MINIFLUX_API_KEY` → `miniflux.api_key`
+- `MINIGIST_LLM_API_KEY` → `llm.api_key`
 
 ```yaml
 miniflux:
