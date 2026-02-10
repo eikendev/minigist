@@ -117,10 +117,13 @@ fetch:
   limit: 50
 
 notifications:
-  # Apprise notification URLs (optional)
+  # Apprise notification URLs for error/failure alerts (optional)
   - "discord://webhook_id/webhook_token"
   - "telegram://bot_token/chat_id"
 ```
+
+> [!NOTE]
+> Notifications are only sent for errors or runs that finish with failures; summaries are not pushed as notifications.
 
 See [Apprise documentation](https://github.com/caronc/apprise) for all supported notification services.
 
