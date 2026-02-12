@@ -10,6 +10,7 @@ from openai.types.shared_params.response_format_json_schema import ResponseForma
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .config import LLMConfig
+from .constants import FIXED_SYSTEM_PROMPT
 from .exceptions import LLMServiceError
 from .logging import format_log_preview, get_logger
 
@@ -59,6 +60,10 @@ class Summarizer:
             }
 
             messages: list[ChatCompletionMessageParam] = [
+                cast(
+                    ChatCompletionSystemMessageParam,
+                    {"role": "system", "content": FIXED_SYSTEM_PROMPT},
+                ),
                 cast(
                     ChatCompletionSystemMessageParam,
                     {"role": "system", "content": prompt},

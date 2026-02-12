@@ -88,6 +88,9 @@ prompts:
   - id: "deep-dive"
     prompt: "Extract the nuanced arguments and counterpoints."
 
+# minigist always appends a fixed system instruction that enforces JSON output
+# and requires summary_markdown to be Markdown. This cannot be overridden.
+
 # Optional: when no targets are defined, this prompt is used for all unread entries.
 # If omitted, the first prompt in the "prompts" list is used.
 default_prompt_id: "default"
