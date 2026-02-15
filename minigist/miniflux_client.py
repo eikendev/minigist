@@ -1,15 +1,16 @@
 """Miniflux API client wrapper with retry handling."""
 
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 from miniflux import Client  # type: ignore
 from tenacity import RetryCallState, retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
-from .constants import MAX_RETRIES_PER_ENTRY, RETRY_DELAY_SECONDS
 from .config import FetchConfig, MinifluxConfig
+from .constants import MAX_RETRIES_PER_ENTRY, RETRY_DELAY_SECONDS
 from .exceptions import MinifluxApiError
 from .logging import format_log_preview, get_logger
-from .models import Category, EntriesResponse, Entry, Feed, FeedsResponse
+from .models import EntriesResponse, Entry, Feed, FeedsResponse
 
 logger = get_logger(__name__)
 T = TypeVar("T")
@@ -56,7 +57,7 @@ class MinifluxClient:
 
     def get_entries(self, feed_ids: list[int] | None, fetch_config: FetchConfig) -> list[Entry]:
         """Fetch unread entries from Miniflux with retries."""
-        params = {
+        params: dict[str, object] = {
             "status": "unread",
             "direction": "desc",
             "order": "published_at",

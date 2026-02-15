@@ -365,6 +365,7 @@ wheels = [
 
 [[package]]
 name = "minigist"
+version = "0.9.2"
 source = { editable = "." }
 dependencies = [
     { name = "apprise" },
