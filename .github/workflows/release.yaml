@@ -1,0 +1,60 @@
+name: Release
+run-name: Release • main • ${{ github.sha }}
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: Continuous Integration
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Publish release
+    needs: ci
+    runs-on: ubuntu-slim
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Create GitHub release (Release Please)
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          release-type: python
+
+      - name: Download distributions
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: dist
+
+      - name: Upload distributions to GitHub Release
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ steps.release.outputs.tag_name }}" dist/* --clobber
+
+      - name: Publish distributions to PyPI
+        if: ${{ steps.release.outputs.release_created }}
+        run: uv publish -v dist/*

@@ -1,0 +1,21 @@
+name: Setup
+description: Prepare environment and install project dependencies
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v6
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+
+    - name: Verify uv version
+      shell: bash
+      run: uv --version
+
+    - name: Install dependencies
+      shell: bash
+      run: make setup

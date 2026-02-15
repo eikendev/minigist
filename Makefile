@@ -8,8 +8,8 @@ VERSION := $(shell git describe --tags --long | sed -E 's/^v?([0-9.]+)-([0-9]+)-
 .PHONY: default
 default: check
 
-.PHONY: install
-install:
+.PHONY: setup
+setup:
 	$(UV) sync --all-extras --dev
 
 .PHONY: format
