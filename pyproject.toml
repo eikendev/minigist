@@ -4,7 +4,7 @@ description = "A tool that generates concise summaries for you Miniflux feeds."
 readme = "README.md"
 license-files = ["LICENSE"]
 requires-python = ">=3.13"
-dynamic = ["version"]
+version = "0.9.2"
 authors = [
     {name = "eikendev"},
 ]
@@ -43,15 +43,11 @@ Homepage = "https://github.com/eikendev/minigist"
 minigist = "minigist.cli:cli"
 
 [build-system]
-requires = ["setuptools>=64", "setuptools-scm"]
+requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["minigist"]
-
-[tool.setuptools_scm]
-version_scheme = "post-release"
-local_scheme = "no-local-version"
 
 [tool.ruff]
 line-length = 120
