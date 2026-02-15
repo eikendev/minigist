@@ -1,7 +1,8 @@
 {
 	"include-v-in-tag": true,
+	"include-v-in-release-name": true,
 	"include-component-in-tag": false,
-	"pull-request-title-pattern": "chore(release): ${version}",
+	"pull-request-title-pattern": "chore: release ${version}",
 	"labels": ["type:chore"],
 	"changelog-sections": [
 		{ "type": "feat", "section": "Features" },
