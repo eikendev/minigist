@@ -1,14 +1,18 @@
 {
-  "release-type": "python",
-  "include-v-in-tag": true,
-  "include-component-in-tag": false,
-  "pull-request-title-pattern": "chore(release): ${version}",
-  "labels": ["type:chore"],
-  "changelog-sections": [
-    { "type": "feat", "section": "Features" },
-    { "type": "fix", "section": "Bug Fixes" },
-    { "type": "perf", "section": "Performance" },
-    { "type": "docs", "section": "Documentation" },
-    { "type": "build", "section": "Build" }
-  ]
+	"include-v-in-tag": true,
+	"include-component-in-tag": false,
+	"pull-request-title-pattern": "chore(release): ${version}",
+	"labels": ["type:chore"],
+	"changelog-sections": [
+		{ "type": "feat", "section": "Features" },
+		{ "type": "fix", "section": "Bug Fixes" },
+		{ "type": "perf", "section": "Performance" },
+		{ "type": "docs", "section": "Documentation" },
+		{ "type": "build", "section": "Build" }
+	],
+	"packages": {
+		".": {
+			"release-type": "python"
+		}
+	}
 }
