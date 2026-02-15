@@ -1,6 +1,7 @@
 {
   "release-type": "python",
   "include-v-in-tag": true,
+  "include-component-in-tag": false,
   "pull-request-title-pattern": "chore(release): ${version}",
   "labels": ["type:chore"],
   "changelog-sections": [
