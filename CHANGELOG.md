@@ -17,7 +17,3 @@
 ### Build
 
 * switch to static versioning ([2244eeb](https://github.com/eikendev/minigist/commit/2244eeb4c902644a6d441ec28832bad7cd90d108))
-
-## Changelog
-
-All notable changes to this project are documented below.
