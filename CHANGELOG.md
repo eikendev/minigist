@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.9.4](https://github.com/eikendev/minigist/compare/v0.9.3...v0.9.4) (2026-02-16)
+
+
+### Bug Fixes
+
+* include subpackages in distribution ([7e8f0af](https://github.com/eikendev/minigist/commit/7e8f0af4a149ff97f7e151afe95a05c9fb243eb3))
+
+
+### Documentation
+
+* clean up changelog ([d50f0fe](https://github.com/eikendev/minigist/commit/d50f0fee89e1842b427699fc2e22320d33382832))
+* update build badge link ([d8b34b4](https://github.com/eikendev/minigist/commit/d8b34b465ca9d7f586cedff6891541e9c13741f0))
+
 ## [0.9.3](https://github.com/eikendev/minigist/compare/v0.9.2...v0.9.3) (2026-02-16)
 
 
