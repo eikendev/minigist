@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.5](https://github.com/eikendev/minigist/compare/v0.9.4...v0.9.5) (2026-02-21)
+
+
+### Documentation
+
+* update build badge link ([58f5755](https://github.com/eikendev/minigist/commit/58f57556d172f557812fe2d25e731e3f2119cc8f))
+
 ## [0.9.4](https://github.com/eikendev/minigist/compare/v0.9.3...v0.9.4) (2026-02-16)
 
 
