@@ -22,6 +22,7 @@ check:
 	$(UV) run ruff format --check $(SRC) $(TESTS)
 	$(UV) run ruff check $(SRC) $(TESTS)
 	$(UV) run pyrefly check
+	$(UV) run bandit -r $(SRC)
 	$(UV) run pytest $(TESTS)
 
 .PHONY: clean
