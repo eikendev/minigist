@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.5](https://github.com/eikendev/minigist/compare/v0.9.4...v0.9.5) (2026-02-28)
+
+
+### Documentation
+
+* update build badge link ([58f5755](https://github.com/eikendev/minigist/commit/58f57556d172f557812fe2d25e731e3f2119cc8f))
+
+
+### Build
+
+* add bandit to checks ([51516f4](https://github.com/eikendev/minigist/commit/51516f4ed64c03006dedac8ea3960d42a0b02492))
+
 ## [0.9.4](https://github.com/eikendev/minigist/compare/v0.9.3...v0.9.4) (2026-02-16)
 
 
