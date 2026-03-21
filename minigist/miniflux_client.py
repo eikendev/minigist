@@ -1,6 +1,7 @@
 """Miniflux API client wrapper with retry handling."""
 
 from collections.abc import Callable
+from functools import partial
 from typing import TypeVar
 
 from miniflux import Client  # type: ignore
@@ -65,32 +66,48 @@ class MinifluxClient:
         }
 
         logger.debug("Fetching entries", parameters=params)
-        return self._call_with_retry(
-            lambda: self._get_entries(feed_ids=feed_ids, params=params),
-            "get_miniflux_entries",
-        )
 
-    def _get_entries(self, feed_ids: list[int] | None, params: dict[str, object]) -> list[Entry]:
-        """Perform the Miniflux entries fetch without retries."""
-        all_entries = []
+        if feed_ids:
+            all_entries: list[Entry] = []
 
-        try:
-            if feed_ids:
-                for feed_id in feed_ids:
-                    raw_response = self.client.get_feed_entries(feed_id=feed_id, **params)
-                    response = EntriesResponse.model_validate(raw_response)
-                    all_entries.extend(response.entries)
-            else:
-                raw_response = self.client.get_entries(**params)
-                response = EntriesResponse.model_validate(raw_response)
-                all_entries = response.entries
-
-        except Exception as e:
-            logger.error("Failed to fetch entries from Miniflux", error=str(e))
-            raise MinifluxApiError("Failed to fetch entries") from e
+            for feed_id in feed_ids:
+                entries = self._call_with_retry(
+                    partial(self._get_feed_entries, feed_id=feed_id, params=params),
+                    "get_miniflux_entries",
+                )
+                all_entries.extend(entries)
+        else:
+            all_entries = self._call_with_retry(
+                lambda: self._get_entries(params=params),
+                "get_miniflux_entries",
+            )
 
         logger.info("Fetched unread entries", count=len(all_entries))
         return all_entries
+
+    def _get_feed_entries(self, feed_id: int, params: dict[str, object]) -> list[Entry]:
+        """Fetch entries for a single Miniflux feed without retries."""
+        try:
+            raw_response = self.client.get_feed_entries(feed_id=feed_id, **params)
+            response = EntriesResponse.model_validate(raw_response)
+            return response.entries
+        except Exception as e:
+            logger.error(
+                "Failed to fetch entries from Miniflux",
+                feed_id=feed_id,
+                error=str(e),
+            )
+            raise MinifluxApiError(f"Failed to fetch entries for feed {feed_id}") from e
+
+    def _get_entries(self, params: dict[str, object]) -> list[Entry]:
+        """Fetch entries across all feeds without retries."""
+        try:
+            raw_response = self.client.get_entries(**params)
+            response = EntriesResponse.model_validate(raw_response)
+            return response.entries
+        except Exception as e:
+            logger.error("Failed to fetch entries from Miniflux", error=str(e))
+            raise MinifluxApiError("Failed to fetch entries") from e
 
     def update_entry(self, entry_id: int, content: str, log_context: dict[str, object]) -> None:
         """Update entry content in Miniflux with retries."""
