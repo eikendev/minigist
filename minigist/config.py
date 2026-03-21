@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 import yaml
 from pydantic import BaseModel, Field, HttpUrl, ValidationError
@@ -74,15 +74,9 @@ class FetchConfig(BaseModel):
     limit: int | None = Field(DEFAULT_FETCH_LIMIT, description="Maximum number of entries to fetch per feed.")
 
 
-def ensure_list_if_none(v: Any) -> list[str]:
-    if v is None:
-        return []
-    return v
-
-
 class ScrapingConfig(BaseModel):
     pure_api_token: str | None = Field(None, description="API token for the pure.md service.")
-    pure_base_urls: Annotated[list[str], BeforeValidator(ensure_list_if_none)] = Field(
+    pure_base_urls: Annotated[list[str], BeforeValidator(lambda v: [] if v is None else v)] = Field(
         default_factory=list,
         description="List of base URL prefixes for which pure.md should always be used.",
     )
@@ -117,11 +111,11 @@ class AppConfig(BaseModel):
     )
     prompts: list[PromptConfig]
     targets: list[TargetConfig] = Field(default_factory=list)
-    fetch: FetchConfig = Field(default_factory=lambda: FetchConfig.model_construct())
+    fetch: FetchConfig = Field(default_factory=FetchConfig)  # type: ignore[arg-type]
     llm: LLMConfig
     miniflux: MinifluxConfig
-    notifications: NotificationConfig = Field(default_factory=lambda: NotificationConfig.model_construct())
-    scraping: ScrapingConfig = Field(default_factory=lambda: ScrapingConfig.model_construct())
+    notifications: NotificationConfig = Field(default_factory=NotificationConfig)
+    scraping: ScrapingConfig = Field(default_factory=ScrapingConfig)  # type: ignore[arg-type]
 
 
 def find_config_file(config_option: Path | None = None) -> Path:

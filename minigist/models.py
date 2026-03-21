@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 
 class Entry(BaseModel):
@@ -19,8 +19,6 @@ class Entry(BaseModel):
     share_code: str = ""
     starred: bool = False
     reading_time: int = 0
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class EntriesResponse(BaseModel):
