@@ -10,6 +10,7 @@ from .logging import get_logger
 from .miniflux_client import MinifluxClient
 from .models import Entry, ProcessingStats
 from .pipeline import FetchWorker, LLMWorker, UpdateWorker
+from .processing_counts import ProcessingCounts
 from .summarizer import Summarizer
 
 logger = get_logger(__name__)
@@ -213,11 +214,11 @@ class Processor:
         in_queue: asyncio.Queue = asyncio.Queue(maxsize=self.config.llm.concurrency * 2)
         out_queue: asyncio.Queue = asyncio.Queue()
         abort_event = asyncio.Event()
-        counts = {"processed": 0, "failed": 0}
+        counts = ProcessingCounts()
 
         def record_failure() -> None:
-            counts["failed"] += 1
-            if counts["failed"] >= FAILED_ENTRIES_ABORT_THRESHOLD:
+            counts.increment_failed()
+            if counts.failed >= FAILED_ENTRIES_ABORT_THRESHOLD:
                 abort_event.set()
 
         fetch_worker = FetchWorker(
@@ -282,4 +283,4 @@ class Processor:
             fetch_executor.shutdown(wait=True)
             update_executor.shutdown(wait=True)
 
-        return counts["processed"], counts["failed"], abort_event.is_set()
+        return counts.processed, counts.failed, abort_event.is_set()

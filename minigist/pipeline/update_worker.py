@@ -14,6 +14,7 @@ from minigist.miniflux_client import MinifluxClient
 from minigist.models import Entry
 from minigist.pipeline.base_worker import BaseWorker
 from minigist.pipeline.types import OutQueueItem
+from minigist.processing_counts import ProcessingCounts
 
 logger = get_logger(__name__)
 
@@ -45,7 +46,7 @@ class UpdateWorker(BaseWorker):
         out_queue: asyncio.Queue[OutQueueItem | None],
         update_executor: ThreadPoolExecutor,
         llm_concurrency: int,
-        counts: dict[str, int],
+        counts: ProcessingCounts,
     ) -> None:
         """Consume summaries from the queue and update Miniflux entries."""
         worker_sentinels = 0
@@ -93,7 +94,7 @@ class UpdateWorker(BaseWorker):
                     sanitized_html_content,
                     log_context,
                 )
-                counts["processed"] += 1
+                counts.increment_processed()
                 logger.info("Successfully processed entry", **log_context)
             except MinifluxApiError as e:
                 logger.error(
