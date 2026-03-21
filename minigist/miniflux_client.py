@@ -5,7 +5,7 @@ from functools import partial
 from typing import TypeVar
 
 from miniflux import Client  # type: ignore
-from tenacity import RetryCallState, retry, retry_if_exception_type, stop_after_attempt, wait_fixed
+from tenacity import RetryCallState, Retrying, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from .config import FetchConfig, MinifluxConfig
 from .constants import MAX_RETRIES_PER_ENTRY, RETRY_DELAY_SECONDS
@@ -43,18 +43,15 @@ class MinifluxClient:
 
     def _call_with_retry(self, action: Callable[[], T], action_name: str) -> T:
         """Execute a Miniflux API action with retry behavior."""
-
-        @retry(
+        retryer = Retrying(
             stop=stop_after_attempt(MAX_RETRIES_PER_ENTRY),
             wait=wait_fixed(RETRY_DELAY_SECONDS),
             retry=retry_if_exception_type(MinifluxApiError),
             before_sleep=lambda rs: self._log_retry_attempt(rs, action_name),
             reraise=True,
         )
-        def _wrapped() -> T:
-            return action()
 
-        return _wrapped()
+        return retryer(action)
 
     def get_entries(self, feed_ids: list[int] | None, fetch_config: FetchConfig) -> list[Entry]:
         """Fetch unread entries from Miniflux with retries."""

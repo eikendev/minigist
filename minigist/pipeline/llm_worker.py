@@ -1,7 +1,7 @@
 import asyncio
 from collections.abc import Callable
 
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
+from tenacity import AsyncRetrying, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from minigist.constants import MAX_RETRIES_PER_ENTRY, RETRY_DELAY_SECONDS
 from minigist.exceptions import LLMServiceError
@@ -23,18 +23,20 @@ class LLMWorker(BaseWorker):
         self.prompt_lookup = prompt_lookup
 
     async def _generate_summary_with_retry(self, text: str, prompt_id: str, log_context: dict[str, object]) -> str:
-        @retry(
+        retryer = AsyncRetrying(
             stop=stop_after_attempt(MAX_RETRIES_PER_ENTRY),
             wait=wait_fixed(RETRY_DELAY_SECONDS),
             retry=retry_if_exception_type(LLMServiceError),
             before_sleep=lambda rs: self._log_retry_attempt(rs, "generate_summary", log_context),
             reraise=True,
         )
-        async def _generate() -> str:
-            prompt = self.prompt_lookup[prompt_id]
-            return await self.summarizer.generate_summary(text, prompt, log_context=log_context)
 
-        return await _generate()
+        async for attempt in retryer:
+            with attempt:
+                prompt = self.prompt_lookup[prompt_id]
+                return await self.summarizer.generate_summary(text, prompt, log_context=log_context)
+
+        raise RuntimeError("Async retry loop exited unexpectedly")
 
     async def run(
         self,
