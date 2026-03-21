@@ -37,7 +37,7 @@ def test_load_app_config_success(valid_config_dict, mock_config_path):
         patch("minigist.config.find_config_file", return_value=mock_config_path),
         patch("minigist.config.load_config_from_file", return_value=valid_config_dict),
     ):
-        result = load_app_config("some/path")
+        result = load_app_config(Path("some/path"))
 
         assert isinstance(result, AppConfig)
         assert str(result.miniflux.url) == "https://example.com/"
@@ -54,7 +54,7 @@ def test_load_app_config_validation_error(invalid_config_dict, mock_config_path)
         patch("minigist.config.load_config_from_file", return_value=invalid_config_dict),
         pytest.raises(ConfigError, match="Invalid or incomplete configuration"),
     ):
-        load_app_config("some/path")
+        load_app_config(Path("some/path"))
 
 
 def test_load_app_config_config_error():
@@ -65,4 +65,4 @@ def test_load_app_config_config_error():
         ),
         pytest.raises(ConfigError, match="No valid config file found"),
     ):
-        load_app_config("some/path")
+        load_app_config(Path("some/path"))

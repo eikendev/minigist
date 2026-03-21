@@ -124,8 +124,8 @@ class AppConfig(BaseModel):
     scraping: ScrapingConfig = Field(default_factory=lambda: ScrapingConfig.model_construct())
 
 
-def find_config_file(config_option: str | None = None) -> Path:
-    search_paths = ([Path(config_option)] if config_option else []) + DEFAULT_CONFIG_PATHS
+def find_config_file(config_option: Path | None = None) -> Path:
+    search_paths = ([config_option] if config_option else []) + DEFAULT_CONFIG_PATHS
 
     for path in search_paths:
         logger.debug("Checking path for config file", path=str(path))
@@ -158,7 +158,7 @@ def load_config_from_file(file_path: Path) -> dict:
     return config_data
 
 
-def load_app_config(config_path_option: str | None = None) -> AppConfig:
+def load_app_config(config_path_option: Path | None = None) -> AppConfig:
     config_file = find_config_file(config_path_option)
     config_data = load_config_from_file(config_file)
     _apply_env_overrides(config_data)

@@ -56,7 +56,7 @@ def cli():
     help="Perform a dry run without updating Miniflux.",
 )
 def run(
-    config_file: str | None,
+    config_file: Path | None,
     log_level: str,
     dry_run: bool,
 ):
