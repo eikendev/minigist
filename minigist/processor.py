@@ -35,6 +35,15 @@ class Processor:
             raise ConfigError("A valid default prompt must be configured")
         self.default_prompt_id = default_prompt_id
 
+    def __enter__(self) -> "Processor":
+        """Return the processor for context manager usage."""
+        return self
+
+    def __exit__(self, exc_type, exc, exc_tb) -> bool:
+        """Close managed resources when exiting a context."""
+        self.downloader.close()
+        return False
+
     def _filter_unsummarized_entries(self, entries: list[Entry]) -> list[Entry]:
         unsummarized = [entry for entry in entries if WATERMARK_DETECTOR not in entry.content]
         logger.debug(
@@ -197,13 +206,6 @@ class Processor:
             processed_successfully=processed_successfully_count,
             failed_processing=failed_entries_count,
         )
-
-    def close_downloader(self):
-        try:
-            self.downloader.close()
-            logger.debug("Downloader session closed")
-        except Exception as e:
-            logger.warning("Failed to close downloader HTTP session cleanly", error=str(e))
 
     async def _run_pipeline(
         self,

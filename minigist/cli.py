@@ -71,12 +71,11 @@ def run(
         logger.critical("Configuration error", error=str(e))
         sys.exit(1)
 
-    processor = None
     stats = ProcessingStats(total_considered=0, processed_successfully=0, failed_processing=0)
 
     try:
-        processor = Processor(app_config, dry_run=dry_run)
-        stats = processor.run()
+        with Processor(app_config, dry_run=dry_run) as processor:
+            stats = processor.run()
 
     except exceptions.ConfigError as e:
         _handle_critical_error(
@@ -106,10 +105,6 @@ def run(
             log_message="An unexpected error occurred during processing",
             notification_message_prefix="An unexpected error occurred",
         )
-    finally:
-        if processor:
-            processor.close_downloader()
-
     log_data = {
         "total_considered": stats.total_considered,
         "processed_successfully": stats.processed_successfully,

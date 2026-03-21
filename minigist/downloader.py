@@ -23,6 +23,15 @@ class Downloader:
             follow_redirects=True,
         )
 
+    def __enter__(self) -> "Downloader":
+        """Return the downloader for context manager usage."""
+        return self
+
+    def __exit__(self, exc_type, exc, exc_tb) -> bool:
+        """Close the downloader resources when exiting a context."""
+        self.close()
+        return False
+
     def _should_use_pure(self, url: str, log_context: dict[str, object]) -> bool:
         if not self.scraping_config.pure_base_urls:
             logger.debug("Not using pure.md as no base URLs are configured", **log_context)
