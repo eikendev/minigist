@@ -68,16 +68,6 @@ class LLMWorker(BaseWorker):
                         error=None,
                     )
                 )
-            except LLMServiceError as e:
-                self._record_failure()
-                await out_queue.put(
-                    OutQueueItem(
-                        entry=entry,
-                        summary=None,
-                        log_context=log_context,
-                        error=e,
-                    )
-                )
             except Exception as e:
                 self._record_failure()
                 await out_queue.put(
