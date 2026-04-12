@@ -2,6 +2,7 @@ from typing import Any, cast
 
 from openai import AsyncOpenAI
 from openai.types.chat import (
+    ChatCompletion,
     ChatCompletionMessageParam,
     ChatCompletionSystemMessageParam,
     ChatCompletionUserMessageParam,
@@ -74,20 +75,24 @@ class Summarizer:
                 ),
             ]
 
-            request_kwargs: dict[str, Any] = {
-                "model": self.model,
-                "messages": messages,
-                "response_format": response_format,
-            }
-
-            # OpenRouter supports provider/plugins extras; OpenAI rejects unknown params.
             if self.is_openrouter:
-                request_kwargs["extra_body"] = {
-                    "provider": {"require_parameters": True},
-                    "plugins": [{"id": "response-healing"}],
-                }
-
-            completion = await self.client.chat.completions.create(**request_kwargs)
+                completion: ChatCompletion = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    response_format=response_format,
+                    stream=False,
+                    extra_body={
+                        "provider": {"require_parameters": True},
+                        "plugins": [{"id": "response-healing"}],
+                    },
+                )
+            else:
+                completion = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    response_format=response_format,
+                    stream=False,
+                )
         except Exception as e:
             logger.error("Unexpected error during LLM summarization", **log_context, error=str(e))
             raise LLMServiceError(f"LLM service error during summarization: {e}") from e
