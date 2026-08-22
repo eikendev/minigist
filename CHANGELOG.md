@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.6](https://github.com/eikendev/minigist/compare/v0.9.5...v0.9.6) (2026-08-22)
+
+
+### Build
+
+* **deps:** bump pyrefly to &gt;=1.0.0 ([10e33f2](https://github.com/eikendev/minigist/commit/10e33f290ab35b80bc6a4c0250922c9283cfbcb3))
+* **python:** bump ruff to v0.16 ([16df3bf](https://github.com/eikendev/minigist/commit/16df3bfc58ae894d5bb67ade9fd57f5ea11e2ee5))
+
 ## [0.9.5](https://github.com/eikendev/minigist/compare/v0.9.4...v0.9.5) (2026-03-21)
 
 
