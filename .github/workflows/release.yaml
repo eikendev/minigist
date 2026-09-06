@@ -6,10 +6,7 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: write
-  pull-requests: write
-  issues: write
-  id-token: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -18,7 +15,7 @@ concurrency:
 jobs:
   ci:
     name: Continuous Integration
-    uses: ./.github/workflows/pr.yaml
+    uses: $/.github/workflows/pr.yaml
 
   publish:
     name: Publish release
@@ -26,14 +23,21 @@ jobs:
     runs-on: ubuntu-slim
     timeout-minutes: 10
 
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup
-        uses: ./.github/actions/setup
+        uses: $/.github/actions/setup
 
       - name: Create GitHub release (Release Please)
         id: release
@@ -52,8 +56,9 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
         run: |
-          gh release upload "${{ steps.release.outputs.tag_name }}" dist/* --clobber
+          gh release upload "${TAG_NAME}" dist/* --clobber
 
       - name: Publish distributions to PyPI
         if: ${{ steps.release.outputs.release_created }}
