@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.7](https://github.com/eikendev/minigist/compare/v0.9.6...v0.9.7) (2026-10-11)
+
+
+### Build
+
+* **python:** bump openai in the python-dependencies group ([#54](https://github.com/eikendev/minigist/issues/54)) ([24af29a](https://github.com/eikendev/minigist/commit/24af29a1a66667c2a2e78dbb5b070d46ca75d2c7))
+* **python:** bump pyrefly in the python-dependencies group ([#52](https://github.com/eikendev/minigist/issues/52)) ([3989f9d](https://github.com/eikendev/minigist/commit/3989f9d485b33cefede85cbc25af60ee0b003275))
+* **python:** bump the python-dependencies group with 3 updates ([#56](https://github.com/eikendev/minigist/issues/56)) ([22a7d76](https://github.com/eikendev/minigist/commit/22a7d76ec5e3bb09d451d22d0ca5dbe12ed8e24d))
+* **python:** bump the python-dependencies group with 4 updates ([#55](https://github.com/eikendev/minigist/issues/55)) ([e9de40e](https://github.com/eikendev/minigist/commit/e9de40ebd7544d923e6b3b6c8fd0c3f54d7bbf98))
+
 ## [0.9.6](https://github.com/eikendev/minigist/compare/v0.9.5...v0.9.6) (2026-08-22)
 
 
