@@ -1,11 +1,11 @@
 import json
 
-import httpx
+import httpx2
 import trafilatura
-from httpx_retries import RetryTransport
 
 from .config import ScrapingConfig
 from .exceptions import ArticleFetchError
+from .http_client import create_http_client, get_with_retry
 from .logging import get_logger
 from .pure_client import DEFAULT_USER_AGENT, PureMDClient
 
@@ -17,11 +17,7 @@ class Downloader:
         self.scraping_config = scraping_config
         self.timeout_seconds = scraping_config.timeout_seconds
         self.pure_client = PureMDClient(api_token=scraping_config.pure_api_token, user_agent=user_agent)
-        self.http_session = httpx.Client(
-            transport=RetryTransport(),
-            headers={"User-Agent": user_agent},
-            follow_redirects=True,
-        )
+        self.http_session = create_http_client(headers={"User-Agent": user_agent})
 
     def __enter__(self) -> "Downloader":
         """Return the downloader for context manager usage."""
@@ -99,10 +95,9 @@ class Downloader:
 
         html_content: str | None = None
         try:
-            response = self.http_session.get(url, timeout=timeout)
-            response.raise_for_status()
+            response = get_with_retry(self.http_session, url, timeout=timeout, log_context=log_context)
             html_content = response.text
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             logger.error(
                 "HTTP error during standard GET",
                 **log_context,
@@ -113,7 +108,7 @@ class Downloader:
             raise ArticleFetchError(
                 f"HTTP error {e.response.status_code if e.response else 'N/A'} during GET for {url}: {e}"
             ) from e
-        except httpx.RequestError as e:
+        except httpx2.RequestError as e:
             logger.error("RequestException during standard GET", **log_context, url=url, error=str(e))
             raise ArticleFetchError(f"RequestException during GET for {url}: {e}") from e
         except Exception as e:

@@ -2,10 +2,10 @@ import time
 from collections import deque
 from urllib.parse import urlparse, urlunparse
 
-import httpx
-from httpx_retries import RetryTransport
+import httpx2
 
 from .constants import DEFAULT_SCRAPE_TIMEOUT_SECONDS
+from .http_client import create_http_client, get_with_retry
 from .logging import get_logger
 
 logger = get_logger(__name__)
@@ -35,11 +35,7 @@ class PureMDClient:
                 rate_limit_requests=MAX_REQUESTS_PER_WINDOW_NO_TOKEN,
                 rate_limit_window_seconds=int(REQUEST_WINDOW_SECONDS),
             )
-        self._http_client = httpx.Client(
-            transport=RetryTransport(),
-            headers=self.headers,
-            follow_redirects=True,
-        )
+        self._http_client = create_http_client(headers=self.headers)
 
     def _apply_rate_limit_delay_if_needed(self):
         """Checks if rate limit is about to be hit and sleeps if necessary."""
@@ -99,10 +95,9 @@ class PureMDClient:
             request_url=request_url,
         )
         try:
-            response = self._http_client.get(request_url, timeout=timeout)
-            response.raise_for_status()
+            response = get_with_retry(self._http_client, request_url, timeout=timeout)
             return response.text
-        except httpx.HTTPStatusError as e:
+        except httpx2.HTTPStatusError as e:
             logger.error(
                 "HTTP error fetching content from pure.md",
                 url=target_url,
@@ -111,7 +106,7 @@ class PureMDClient:
                 error=str(e),
             )
             return None
-        except httpx.RequestError as e:
+        except httpx2.RequestError as e:
             logger.error(
                 "RequestException fetching content from pure.md",
                 url=target_url,
