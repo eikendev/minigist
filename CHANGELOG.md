@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.8](https://github.com/eikendev/minigist/compare/v0.9.7...v0.9.8) (2026-10-31)
+
+
+### Build
+
+* **actions:** bump zizmorcore/zizmor-action ([#60](https://github.com/eikendev/minigist/issues/60)) ([6bf1f95](https://github.com/eikendev/minigist/commit/6bf1f95257ff7baae595ecc36b671c82edb8faae))
+* **python:** bump the python-dependencies group with 3 updates ([#61](https://github.com/eikendev/minigist/issues/61)) ([9f13827](https://github.com/eikendev/minigist/commit/9f138272e23d923f9ffddc2ab78c778415a736d9))
+
 ## [0.9.7](https://github.com/eikendev/minigist/compare/v0.9.6...v0.9.7) (2026-10-29)
 
 
