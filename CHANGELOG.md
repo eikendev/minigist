@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.9.8](https://github.com/eikendev/minigist/compare/v0.9.7...v0.9.8) (2026-11-14)
+
+
+### Bug Fixes
+
+* keep summaries across miniflux refreshes ([10c2562](https://github.com/eikendev/minigist/commit/10c2562a959e30c5afd97b4f8561a63635d34e7e))
+
+
+### Build
+
+* **actions:** bump zizmorcore/zizmor-action ([#60](https://github.com/eikendev/minigist/issues/60)) ([6bf1f95](https://github.com/eikendev/minigist/commit/6bf1f95257ff7baae595ecc36b671c82edb8faae))
+* **actions:** bump zizmorcore/zizmor-action ([#64](https://github.com/eikendev/minigist/issues/64)) ([64a15bf](https://github.com/eikendev/minigist/commit/64a15bfde74b3288bef343d2e7763143acbf585d))
+* **python:** bump the python-dependencies group with 3 updates ([#61](https://github.com/eikendev/minigist/issues/61)) ([9f13827](https://github.com/eikendev/minigist/commit/9f138272e23d923f9ffddc2ab78c778415a736d9))
+* **python:** bump the python-dependencies group with 7 updates ([#63](https://github.com/eikendev/minigist/issues/63)) ([016e011](https://github.com/eikendev/minigist/commit/016e0116beff07299827c092e5f1b3faa9f9aeb2))
+* **python:** bump the python-dependencies group with 7 updates ([#65](https://github.com/eikendev/minigist/issues/65)) ([9d73a63](https://github.com/eikendev/minigist/commit/9d73a6317a9108a2b0169237335685bb2415d1a5))
+
 ## [0.9.7](https://github.com/eikendev/minigist/compare/v0.9.6...v0.9.7) (2026-10-29)
 
 
