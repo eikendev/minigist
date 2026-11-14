@@ -41,6 +41,13 @@ class Feed(BaseModel):
     id: int
     title: str
     category: Category | None = None
+    crawler: bool = False
+    ignore_entry_updates: bool = False
+
+    @property
+    def keeps_existing_entries(self) -> bool:
+        """Return whether scheduled refreshes leave existing entries untouched."""
+        return self.crawler or self.ignore_entry_updates
 
 
 class FeedsResponse(BaseModel):

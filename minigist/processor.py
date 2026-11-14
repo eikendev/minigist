@@ -2,13 +2,13 @@ import asyncio
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 
-from .config import AppConfig
+from .config import AppConfig, EntryUpdatesMode
 from .constants import FAILED_ENTRIES_ABORT_THRESHOLD, WATERMARK_DETECTOR
 from .downloader import Downloader
 from .exceptions import ConfigError, MinifluxApiError, TooManyFailuresError
 from .logging import get_logger
 from .miniflux_client import MinifluxClient
-from .models import Entry, ProcessingStats
+from .models import Entry, Feed, ProcessingStats
 from .pipeline import FetchWorker, LLMWorker, UpdateWorker
 from .processing_counts import ProcessingCounts
 from .summarizer import Summarizer
@@ -26,6 +26,7 @@ class Processor:
         self.prompt_lookup = {prompt.id: prompt.prompt for prompt in config.prompts}
         self.feed_target_map: dict[int, tuple[str, bool]] = {}
         self.use_targets = bool(config.targets)
+        self.entry_updates_mode = self._resolve_entry_updates_mode()
         default_prompt_id = config.default_prompt_id or (config.prompts[0].id if config.prompts else None)
         if default_prompt_id is None or default_prompt_id not in self.prompt_lookup:
             logger.error(
@@ -54,9 +55,17 @@ class Processor:
         )
         return unsummarized
 
-    def _build_feed_target_map(self) -> dict[int, tuple[str, bool]]:
+    def _resolve_entry_updates_mode(self) -> EntryUpdatesMode:
+        """Return the configured entry updates mode, or the default for the targets setup."""
+        configured_mode = self.config.miniflux.entry_updates
+        if configured_mode is not None:
+            return configured_mode
+        return EntryUpdatesMode.DISABLE if self.use_targets else EntryUpdatesMode.ALLOW
+
+    def _fetch_feeds(self) -> list[Feed]:
+        """Fetch feed metadata from Miniflux, halting on failure."""
         try:
-            feeds = self.client.get_feeds()
+            return self.client.get_feeds()
         except MinifluxApiError as e:
             logger.critical("Failed to fetch feeds metadata from Miniflux", error=str(e))
             raise
@@ -64,6 +73,37 @@ class Processor:
             logger.critical("Unexpected error while fetching feeds metadata", error=str(e))
             raise
 
+    def _select_feeds_without_entry_updates(self, feeds: list[Feed]) -> list[Feed]:
+        """Return the feeds whose summaries survive refreshes, disabling entry updates if configured.
+
+        Args:
+            feeds: Feeds that minigist would summarize.
+
+        Returns:
+            Feeds that already keep existing entries, or had entry updates disabled successfully.
+        """
+        selected_feeds: list[Feed] = []
+
+        for feed in feeds:
+            if feed.keeps_existing_entries:
+                selected_feeds.append(feed)
+                continue
+
+            if self.entry_updates_mode is EntryUpdatesMode.SKIP:
+                logger.warning("Skipping feed with entry updates enabled", feed_id=feed.id, feed_title=feed.title)
+                continue
+
+            try:
+                self.client.disable_entry_updates(feed)
+            except MinifluxApiError as e:
+                logger.error("Failed to disable entry updates", feed_id=feed.id, error=str(e))
+                continue
+
+            selected_feeds.append(feed)
+
+        return selected_feeds
+
+    def _build_feed_target_map(self, feeds: list[Feed]) -> dict[int, tuple[str, bool]]:
         category_to_feed_ids: dict[int, set[int]] = defaultdict(set)
         for feed in feeds:
             if feed.category and feed.category.id is not None:
@@ -123,9 +163,12 @@ class Processor:
         processed_successfully_count = 0
         failed_entries_count = 0
 
+        manage_entry_updates = self.entry_updates_mode is not EntryUpdatesMode.ALLOW
+        feeds = self._fetch_feeds() if self.use_targets or manage_entry_updates else []
+
         if self.use_targets:
             try:
-                self.feed_target_map = self._build_feed_target_map()
+                self.feed_target_map = self._build_feed_target_map(feeds)
             except (MinifluxApiError, ConfigError) as e:
                 logger.critical("Failed to resolve target mapping", error=str(e))
                 raise
@@ -134,6 +177,16 @@ class Processor:
                 raise
 
         effective_feed_ids = list(self.feed_target_map.keys()) if self.use_targets else None
+
+        if manage_entry_updates:
+            covered_feeds = [feed for feed in feeds if feed.id in self.feed_target_map] if self.use_targets else feeds
+            selected_feeds = self._select_feeds_without_entry_updates(covered_feeds)
+            if self.use_targets or len(selected_feeds) < len(covered_feeds):
+                effective_feed_ids = [feed.id for feed in selected_feeds]
+
+        if effective_feed_ids == []:
+            logger.info("No feeds to summarize")
+            return ProcessingStats(total_considered=0, processed_successfully=0, failed_processing=0)
 
         try:
             all_fetched_entries = self.client.get_entries(effective_feed_ids, self.config.fetch)

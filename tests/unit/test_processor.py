@@ -3,9 +3,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from minigist.config import TargetConfig
+from minigist.config import EntryUpdatesMode, TargetConfig
 from minigist.constants import WATERMARK_DETECTOR
-from minigist.exceptions import ConfigError
+from minigist.exceptions import ConfigError, MinifluxApiError
 from minigist.models import Category, Entry, Feed
 from minigist.processor import Processor
 
@@ -17,6 +17,7 @@ def mock_app_config():
     config.miniflux = MagicMock()
     config.miniflux.url = "http://miniflux.example.com"
     config.miniflux.api_key = "miniflux_api_key"
+    config.miniflux.entry_updates = None
 
     config.llm = MagicMock()
     config.llm.model = "test-llm-model"
@@ -121,32 +122,84 @@ class TestProcessorBuildFeedTargetMap:
     def test_build_feed_target_map_resolves_feeds_and_categories(self, processor_instance: Processor):
         feed1 = Feed(id=1, title="A", category=Category(id=10, title="Cat 10"))
         feed2 = Feed(id=2, title="B", category=Category(id=20, title="Cat 20"))
-        processor_instance.client = MagicMock()  # type: ignore[assignment]
-        processor_instance.client.get_feeds.return_value = [feed1, feed2]
         processor_instance.config.targets = [
             TargetConfig(prompt_id="default", feed_ids=[1], category_ids=None, use_pure=False),
             TargetConfig(prompt_id="default", feed_ids=None, category_ids=[20], use_pure=True),
         ]
 
-        feed_target_map = processor_instance._build_feed_target_map()
+        feed_target_map = processor_instance._build_feed_target_map([feed1, feed2])
 
         assert feed_target_map[1] == ("default", False)
         assert feed_target_map[2] == ("default", True)
 
     def test_build_feed_target_map_conflicting_feed_assignment(self, processor_instance: Processor):
         feed1 = Feed(id=1, title="A", category=None)
-        processor_instance.client = MagicMock()  # type: ignore[assignment]
-        processor_instance.client.get_feeds.return_value = [feed1]
         processor_instance.config.targets = [
             TargetConfig(prompt_id="default", feed_ids=[1], category_ids=None, use_pure=False),
             TargetConfig(prompt_id="default", feed_ids=[1], category_ids=None, use_pure=False),
         ]
 
         with pytest.raises(ConfigError):
-            processor_instance._build_feed_target_map()
+            processor_instance._build_feed_target_map([feed1])
 
     def test_filter_entry_content_is_empty(self, processor_instance: Processor):
         entries = [create_mock_entry(1, "")]
         filtered = processor_instance._filter_unsummarized_entries(entries)
         assert len(filtered) == 1
         assert filtered[0].id == 1
+
+
+@pytest.fixture
+def mock_client(processor_instance: Processor) -> MagicMock:
+    client = MagicMock()
+    processor_instance.client = client  # type: ignore[assignment]
+    return client
+
+
+class TestProcessorEntryUpdates:
+    def test_mode_defaults_to_disable_with_targets(self, processor_instance: Processor):
+        assert processor_instance.entry_updates_mode is EntryUpdatesMode.DISABLE
+
+    def test_mode_defaults_to_allow_without_targets(self, mock_app_config):
+        mock_app_config.targets = []
+        processor = Processor(config=mock_app_config, dry_run=True)
+        assert processor.entry_updates_mode is EntryUpdatesMode.ALLOW
+
+    def test_feeds_keeping_entries_are_not_updated(self, processor_instance: Processor, mock_client: MagicMock):
+        feeds = [
+            Feed(id=1, title="A", crawler=True),
+            Feed(id=2, title="B", ignore_entry_updates=True),
+        ]
+
+        selected = processor_instance._select_feeds_without_entry_updates(feeds)
+
+        assert selected == feeds
+        mock_client.disable_entry_updates.assert_not_called()
+
+    def test_feed_without_entry_update_fields_is_unprotected(self):
+        feed = Feed.model_validate({"id": 1, "title": "A"})
+        assert feed.keeps_existing_entries is False
+
+    def test_disable_mode_updates_feed(self, processor_instance: Processor, mock_client: MagicMock):
+        feed = Feed(id=1, title="A")
+
+        selected = processor_instance._select_feeds_without_entry_updates([feed])
+
+        assert selected == [feed]
+        mock_client.disable_entry_updates.assert_called_once_with(feed)
+
+    def test_skip_mode_drops_feed(self, processor_instance: Processor, mock_client: MagicMock):
+        processor_instance.entry_updates_mode = EntryUpdatesMode.SKIP
+
+        selected = processor_instance._select_feeds_without_entry_updates([Feed(id=1, title="A")])
+
+        assert selected == []
+        mock_client.disable_entry_updates.assert_not_called()
+
+    def test_failed_update_drops_feed(self, processor_instance: Processor, mock_client: MagicMock):
+        mock_client.disable_entry_updates.side_effect = MinifluxApiError("boom")
+        feeds = [Feed(id=1, title="A"), Feed(id=2, title="B", crawler=True)]
+
+        selected = processor_instance._select_feeds_without_entry_updates(feeds)
+
+        assert [feed.id for feed in selected] == [2]

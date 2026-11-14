@@ -139,6 +139,31 @@ class MinifluxClient:
             )
             raise MinifluxApiError(f"Failed to update entry ID {entry_id}") from e
 
+    def disable_entry_updates(self, feed: Feed) -> None:
+        """Enable ignore_entry_updates on a feed with retries."""
+        logger.info("Disabling entry updates", feed_id=feed.id, feed_title=feed.title)
+
+        if self.dry_run:
+            logger.warning(
+                "Would disable entry updates; skipping due to dry run",
+                feed_id=feed.id,
+                feed_title=feed.title,
+            )
+            return
+
+        self._call_with_retry(
+            partial(self._disable_entry_updates, feed_id=feed.id),
+            "update_miniflux_feed",
+        )
+
+    def _disable_entry_updates(self, feed_id: int) -> None:
+        """Perform the Miniflux feed update call without retries."""
+        try:
+            self.client.update_feed(feed_id=feed_id, ignore_entry_updates=True)
+        except Exception as e:
+            logger.error("Failed to update feed", feed_id=feed_id, error=str(e))
+            raise MinifluxApiError(f"Failed to update feed ID {feed_id}") from e
+
     def get_feeds(self) -> list[Feed]:
         """Fetch Miniflux feeds metadata with retries."""
         logger.debug("Fetching feeds metadata")

@@ -1,4 +1,5 @@
 import os
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
 
@@ -30,12 +31,27 @@ DEFAULT_CONFIG_PATHS = [
 ]
 
 
+class EntryUpdatesMode(StrEnum):
+    """How minigist handles feeds whose entries Miniflux rewrites on refresh."""
+
+    DISABLE = "disable"
+    SKIP = "skip"
+    ALLOW = "allow"
+
+
 class MinifluxConfig(BaseModel):
     url: HttpUrl = Field(..., description="URL of the Miniflux instance.")
     api_key: str = Field(..., description="Miniflux API key.")
     timeout_seconds: float = Field(
         DEFAULT_MINIFLUX_TIMEOUT_SECONDS,
         description="Timeout for Miniflux API requests in seconds.",
+    )
+    entry_updates: EntryUpdatesMode | None = Field(
+        None,
+        description=(
+            "Handling of feeds that Miniflux may rewrite on refresh. "
+            "Defaults to 'disable' with targets and 'allow' without."
+        ),
     )
 
 

@@ -14,9 +14,11 @@
 
 ## ✨&nbsp;Why minigist?
 
-Long-form feed entries are great for depth but hard to keep up with. Miniflux shows the full content, and without a summary layer you still have to read everything to decide what matters.
+Long-form feed entries are great for depth but hard to keep up with.
+Miniflux shows the full content, and without a summary layer you still have to read everything to decide what matters.
 
-minigist solves this by generating concise summaries on the server side and writing them directly into each unread entry. This works with your current way to read Miniflux entries, no client changes needed.
+minigist solves this by generating concise summaries on the server side and writing them directly into each unread entry.
+This works with your current way to read Miniflux entries, no client changes needed.
 
 ## 🧠&nbsp;How it works
 
@@ -43,7 +45,8 @@ uv tool install minigist
 
 ### Configuration
 
-Find below an example config file. By default, minigist searches for a config file in this order:
+Find below an example config file.
+By default, minigist searches for a config file in this order:
 
 - `~/.config/minigist/config.yaml`
 - `~/.config/minigist/config.yml`
@@ -67,6 +70,9 @@ miniflux:
   api_key: "your-miniflux-api-key"
   # Request timeout in seconds (optional; default: 2)
   timeout_seconds: 2
+  # What to do with feeds that Miniflux rewrites on refresh: "disable", "skip", or "allow"
+  # (optional; default: "disable" with targets, "allow" without). See "Keeping summaries".
+  entry_updates: "disable"
 
 llm:
   # API key for your LLM provider (required)
@@ -129,6 +135,27 @@ notifications:
 > Notifications are only sent for errors or runs that finish with failures; summaries are not pushed as notifications.
 
 See [Apprise documentation](https://github.com/caronc/apprise) for all supported notification services.
+
+### Keeping summaries
+
+minigist writes each summary into the entry's content.
+When Miniflux refreshes a feed and sees that it changed, it rewrites the content of every entry still listed in that feed, and the summary is gone.
+minigist cannot tell that the summary was removed, so it summarizes the unread entries again on the next run and spends another LLM call on each.
+
+Miniflux skips this rewrite for feeds that have "Ignore entry updates" or "Fetch original content" enabled.
+The `miniflux.entry_updates` setting decides what minigist does with feeds that have neither:
+
+- `disable` turns on "Ignore entry updates" for the feed before summarizing it.
+  This is the default when targets are defined.
+- `skip` leaves the feed unchanged, logs a warning, and does not summarize it.
+- `allow` summarizes the feed anyway.
+  This is the default without targets, since `disable` would then change every feed on your instance.
+
+With "Ignore entry updates" on, Miniflux also stops picking up later edits the publisher makes to an article.
+minigist does not keep track of the feeds it changed, so if you drop a feed from your targets, turn the option off yourself in the feed settings.
+A forced refresh in Miniflux still rewrites the entries and removes their summaries.
+
+This needs Miniflux 2.2.18 or later, the first release with "Ignore entry updates".
 
 ### Run
 
