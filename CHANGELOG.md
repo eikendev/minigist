@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.9](https://github.com/eikendev/minigist/compare/v0.9.8...v0.9.9) (2026-11-28)
+
+
+### Build
+
+* **python:** bump the python-dependencies group with 6 updates ([#66](https://github.com/eikendev/minigist/issues/66)) ([9caf417](https://github.com/eikendev/minigist/commit/9caf41788121347ab741d36eea1b1a0b0f086ee3))
+* **python:** bump the python-dependencies group with 7 updates ([#68](https://github.com/eikendev/minigist/issues/68)) ([cffaaf4](https://github.com/eikendev/minigist/commit/cffaaf41f9de6db198751775da1ab38ac8221970))
+
 ## [0.9.8](https://github.com/eikendev/minigist/compare/v0.9.7...v0.9.8) (2026-11-14)
 
 
